@@ -7,7 +7,7 @@ This repository contains the workflow for the on-demand downscaling project. The
 
 ## Installation
 
-The dependencies used for this repo are managed using the [poetry](https://python-poetry.org/) tool. You can review [this document](https://confluence.pcic.uvic.ca/pages/viewpage.action?pageId=83919386) to see how to install and use it. After installing it, you can set up the virtual environment and the dependencies by running
+The dependencies used for this repo are managed using the [poetry](https://python-poetry.org/) tool. You can review [the instructions](https://python-poetry.org/docs/#installing-with-the-official-installer) for how to install it. After doing so, you can set up the virtual environment and the dependencies by running
 
 ```bash
 $ poetry install
