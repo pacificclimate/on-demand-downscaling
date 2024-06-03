@@ -1,9 +1,10 @@
 [tool.poetry]
-name = "on-demand-downscaling"
+name = "on-demand_downscaling"
 version = "0.1.0"
 description = "A Jupyter Notebook facilitating the workflow for the on-demand downscaling project"
 authors = ["Eric Yvorchuk <eyvorchuk@uvic.ca>"]
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = ">=3.9,<4"
