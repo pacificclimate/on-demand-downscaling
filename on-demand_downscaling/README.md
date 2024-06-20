@@ -59,14 +59,14 @@ Please note that for indices requiring multiple variables, you can only compute 
 
 ## Additional Information
 
-#### `CMIP6` Future Periods
-Climate Imprint requires a baseline calibration period, which is 1981-2010 from the PRISM climatologies in this case. This calibration period must overlap with the time range of the GCM input. As such, when you select a future CMIP6 period (i.e. 2011-2040, 2041-2070, or 2071-2100), the tool will concatenate the CMIP6 data for the baseline period with the data for the future period, save that concatenated data to a temporary file, and then that temporary file will be passed to `chickadee`. The resulting output is thus high-resolution data for the baseline period and the future period. While that temporary file is being created, you cannot run other cells, so it would be best to start these processes after the ones for the 1950-2010 period and for PNWNAmet.
+#### `ERROR` Messages Below Progress Bars
+Sometimes when a downscaling or index computation process is running, you might see a message that says `ERROR:root:Could not read status document.` or `ERROR:root:Could not parse XML response.`. From testing, the processes have always successfully completed even with these messages, so they can be safely ignored.
 
 #### `tasmean` Calculations
 Since daily `tasmean` data is unavailable by default, it is first calculated in step 1 by obtaining `tasmax` and `tasmin` subsets from the specified inputs, then passing them to `finch` to calculate low-resolution `tasmean` data. Afterwards, it is passed to `chickadee` to calculate high-resolution data as normal. The initial low-resolution `tasmean` calculation takes ~2 minutes for the PNWNAmet data, and while it is happening, you cannot run other cells, so it would be best to start these processes after the ones for other variables.
 
 #### Preserving Outputs
-The downscaled outputs from step 1 are quite large (~7.5 GB for CMIP6 and ~9 GB for PNWNAmet). Until we determine a location where we can store many of these outputs, we would prefer to not keep them around for long. As such, if you would like to preserve these outputs for later use, it is recommended that you download them using the URLs. Also note that restarting the notebook will not save the output URLs, so make a copy of their locations if you would like to access them later.
+The downscaled outputs from step 1 are quite large (~9 GB for PNWNAmet, ~7.5 GB for CMIP6 during the 1950-2010 historical period, and ~15 GB for CMIP6 during the 1981-2100 calibration+future period). Until we determine a location where we can store many of these outputs, we would prefer to not keep them around for long. As such, if you would like to preserve these outputs for later use, it is recommended that you download them using the URLs. Also note that restarting the notebook will not save the output URLs, so make a copy of their locations if you would like to access them later.
 
 #### Calculating Indices from Downscaled Outputs from Previous Sessions
 If you have saved the URL of a downscaled output that was created during a previous session, you can use this URL in the cell marked `add_previous_downscaled_output` in step VI. This will add it to the list of output files that can be used for computing indices. However, since we're currently storing these outputs in the short term, it is possible that it has been removed from our storage. In this case, you will have to recompute it in step 1 and save the new URL.

@@ -246,24 +246,13 @@ def handle_run_downscaling(arg):
     # Request a subset of each dataset based on the array indices for each subdomain
     gcm_subset_file = f"{gcm_file}?time{gcm_time_range},lat{gcm_lat_range},lon{gcm_lon_range},{gcm_var}{gcm_time_range}{gcm_lat_range}{gcm_lon_range}"
     obs_subset_file = f"{obs_file}?time{obs_time_range},lat{obs_lat_range},lon{obs_lon_range},climatology_bounds,crs,{obs_var}{obs_time_range}{obs_lat_range}{obs_lon_range}"
-
-    # For downscaling CMIP6 in a future period, the baseline 1981-2010 period is also required for calibration.
-    # Concatenate the baseline and future subsets, save to local temporary file, and downscale this file
-    if dataset_name == "CMIP6" and period.value != "1950-2010":
-        print(f"Concatenating 1981-2010 and {period.value} subsets of {gcm_var}")
-        gcm_subset_file = concat_baseline_future(gcm_dataset, gcm_subset_file, gcm_time_range)
     
     # If tasmean is requested, compute it via finch using the tasmax and tasmin subsets
     if clim_vars.value == "tasmean":
         print("Computing tasmean at " + str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         gcm_var = "tasmean"
         tasmax_file = gcm_subset_file
-        if dataset_name == "CMIP6" and period.value != "1950-2010":
-            print(f"Concatenating 1981-2010 and {period.value} subsets of tasmin")
-            tasmin_future_file = f"{gcm_file.replace('tasmax', 'tasmin')}?time{gcm_time_range},lat{gcm_lat_range},lon{gcm_lon_range},tasmin{gcm_time_range}{gcm_lat_range}{gcm_lon_range}"
-            tasmin_file = concat_baseline_future(gcm_dataset, tasmin_future_file, gcm_time_range)
-        else:
-            tasmin_file = tasmax_file.replace("tasmax", "tasmin")
+        tasmin_file = tasmax_file.replace("tasmax", "tasmin")
         print("Starting tasmean process")
         tasmean = finch.tg(tasmax=tasmax_file, tasmin=tasmin_file, output_name = "tasmean")
         while tasmean.isNotComplete():
@@ -309,7 +298,11 @@ def handle_run_downscaling(arg):
 
     print(chickadee_params["gcm_file"])
     print(f"Downscaling subset of {gcm_file.split('/')[-1]}")
-    approx_time = 13 if "PNWNAmet" in gcm_file else 12
+    print(f"Creating {chickadee_params['out_file']}")
+    if dataset_name == "PNWNAmet":
+        approx_time = 13
+    else:
+        approx_time = 12 if period.value == "1950-2010" else 24
     print(f"Approximate time to completion: {str(approx_time)} minutes")
     global downscaled_outputs
     downscaled_outputs[gcm_var].append(chickadee.ci(**chickadee_params))
@@ -605,7 +598,7 @@ scenario = RadioButtons(
     disabled=True,
 )
 period = RadioButtons(
-    options=["1950-2010", "2011-2040", "2041-2070", "2071-2100"], description="CMIP6 downscaled period:", disabled=True
+    options=["1950-2010", "1981-2100"], description="CMIP6 downscaled period:", disabled=True
 )
 
 run_downscaling = Button(
