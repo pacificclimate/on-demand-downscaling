@@ -25,8 +25,8 @@ finch = WPSClient(finch_url, progress=True)
 downscaled_outputs = {"pr": [], "tasmax": [], "tasmin": [], "tasmean": []}
 index_outputs = []
 
-thredds_base = f"https://{host}/twitcher/ows/proxy/thredds/dodsC/datasets"
-thredds_catalog = f"https://{host}/twitcher/ows/proxy/thredds/catalog/datasets"
+thredds_base = f"{host}/twitcher/ows/proxy/thredds/dodsC/datasets"
+thredds_catalog = f"{host}/twitcher/ows/proxy/thredds/catalog/datasets"
 
 
 ##################### Functions for using chickadee to downscale GCM data #####################################
