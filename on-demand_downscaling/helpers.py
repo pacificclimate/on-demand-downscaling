@@ -25,15 +25,12 @@ finch = WPSClient(finch_url, progress=True)
 downscaled_outputs = {"pr": [], "tasmax": [], "tasmin": [], "tasmean": []}
 index_outputs = []
 
-thredds_base = (
-    f"https://{host}/twitcher/ows/proxy/thredds/dodsC/datasets"
-)
-thredds_catalog = (
-    f"https://{host}/twitcher/ows/proxy/thredds/catalog/datasets"
-)
+thredds_base = f"https://{host}/twitcher/ows/proxy/thredds/dodsC/datasets"
+thredds_catalog = f"https://{host}/twitcher/ows/proxy/thredds/catalog/datasets"
 
 
 ##################### Functions for using chickadee to downscale GCM data #####################################
+
 
 def in_bc(point):
     """Check if a given point is within
@@ -97,6 +94,7 @@ def handle_dataset_change(change):
     scenario.disabled = not scenario.disabled
     period.disabled = not period.disabled
 
+
 def handle_model_change(change):
     """Enable/disable the CanESM5
     run selector depending on if
@@ -106,7 +104,9 @@ def handle_model_change(change):
     else:
         canesm5_run.disabled = True
 
+
 output_widget_downscaling = Output()  # Used to print bird progress to main workflow
+
 
 @output_widget_downscaling.capture()
 def handle_interact(**kwargs):
@@ -128,7 +128,7 @@ def handle_interact(**kwargs):
             m.remove_layer(sub_layers)
         for layer in sub_layers.layers:
             sub_layers.remove_layer(layer)
-        
+
         # Add new subdomains
         m.center_point = point
         center.value = str(m.center_point)
@@ -163,6 +163,7 @@ def handle_interact(**kwargs):
         sub_layers.add_layer(obs_subdomain)
         m.add_layer(sub_layers)
 
+
 def get_time_range(dataset, downscaled_period):
     """Get the indices of the start and end of the
     selected downscaled period."""
@@ -174,9 +175,14 @@ def get_time_range(dataset, downscaled_period):
     end += end_date
 
     date_format = "%Y-%m-%d"
-    start_bound = date2num(datetime.strptime(start, date_format), units=units, calendar=calendar)    
-    end_bound = date2num(datetime.strptime(end, date_format), units=units, calendar=calendar)
+    start_bound = date2num(
+        datetime.strptime(start, date_format), units=units, calendar=calendar
+    )
+    end_bound = date2num(
+        datetime.strptime(end, date_format), units=units, calendar=calendar
+    )
     return f"[{start_bound}:{end_bound}]"
+
 
 def get_index_range(arr, min_val, max_val):
     """Compute the indices in an array that correspond to the array's values
@@ -184,6 +190,7 @@ def get_index_range(arr, min_val, max_val):
     min_index = np.argmin(np.abs(arr - min_val))
     max_index = np.argmin(np.abs(arr - max_val))
     return (min_index, max_index)
+
 
 def concat_baseline_future(gcm_dataset, gcm_subset_file, gcm_time_range):
     """Concatenate the subset for the 1981-2010 calibration period with the
@@ -195,26 +202,35 @@ def concat_baseline_future(gcm_dataset, gcm_subset_file, gcm_time_range):
     baseline_time_range = get_time_range(gcm_dataset, "1981-2010")
     baseline_subset_file = gcm_subset_file.replace(gcm_time_range, baseline_time_range)
     tf = NamedTemporaryFile(suffix=".nc", delete=False)
-    with open_mfdataset([baseline_subset_file, gcm_subset_file], combine="nested", concat_dim="time") as concat_dset:
+    with open_mfdataset(
+        [baseline_subset_file, gcm_subset_file], combine="nested", concat_dim="time"
+    ) as concat_dset:
         concat_dset.to_netcdf(tf.name)
     gcm_subset_file = tf.name
-    return gcm_subset_file    
+    return gcm_subset_file
+
 
 @output_widget_downscaling.capture()
 def handle_run_downscaling(arg):
     """If all inputs to the interactive map have been provided,
     set up the parameters to chickadee and run the downscaling process."""
     if not m.center_point:
-        print("Please select a center point for the downscaling subdomain before running\n")
+        print(
+            "Please select a center point for the downscaling subdomain before running\n"
+        )
         return
     if region.value == "":
-        print("Please enter a region name for the downscaling subdomain before running\n")
+        print(
+            "Please enter a region name for the downscaling subdomain before running\n"
+        )
         return
     # Obtain the input data files from the THREDDS data server (eg. https://marble-dev01.pcic.uvic.ca/twitcher/ows/proxy/thredds/catalog.html)
     data_vars = {"pr": "pr", "tasmax": "tmax", "tasmin": "tmin", "tasmean": "tas"}
 
     if clim_vars.value == "tasmean":
-        gcm_var = "tasmax" # Start by getting subsets of tasmax and tasmin to compute tasmean
+        gcm_var = (
+            "tasmax"  # Start by getting subsets of tasmax and tasmin to compute tasmean
+        )
     else:
         gcm_var = clim_vars.value
     obs_var = data_vars[clim_vars.value]
@@ -267,31 +283,43 @@ def handle_run_downscaling(arg):
         gcm_time_range = f"[0:{gcm_ntime - 1}]"
     else:
         gcm_time_range = get_time_range(gcm_dataset, period.value)
-    
+
     obs_ntime = len(obs_dataset.variables["time"][:])
     obs_time_range = f"[0:{obs_ntime - 1}]"
 
     # Request a subset of each dataset based on the array indices for each subdomain
     gcm_subset_file = f"{gcm_file}?time{gcm_time_range},lat{gcm_lat_range},lon{gcm_lon_range},{gcm_var}{gcm_time_range}{gcm_lat_range}{gcm_lon_range}"
     obs_subset_file = f"{obs_file}?time{obs_time_range},lat{obs_lat_range},lon{obs_lon_range},climatology_bounds,crs,{obs_var}{obs_time_range}{obs_lat_range}{obs_lon_range}"
-    
+
     # If tasmean is requested, compute it via finch using the tasmax and tasmin subsets
     if clim_vars.value == "tasmean":
-        print("Computing tasmean at " + str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        print(
+            "Computing tasmean at " + str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        )
         gcm_var = "tasmean"
         tasmax_file = gcm_subset_file
         tasmin_file = tasmax_file.replace("tasmax", "tasmin")
         print("Starting tasmean process")
-        tasmean = finch.tg(tasmax=tasmax_file, tasmin=tasmin_file, output_name = "tasmean")
+        tasmean = finch.tg(
+            tasmax=tasmax_file, tasmin=tasmin_file, output_name="tasmean"
+        )
         while tasmean.isNotComplete():
             sleep(3)
-        gcm_file = thredds_base + "/birdhouse_wps_outputs" + tasmean.get()[0].split("wpsoutputs")[1]
+        gcm_file = (
+            thredds_base
+            + "/birdhouse_wps_outputs"
+            + tasmean.get()[0].split("wpsoutputs")[1]
+        )
         gcm_subset_file = gcm_file
-        print("Finished computing tasmean at " + str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + "\n")
+        print(
+            "Finished computing tasmean at "
+            + str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            + "\n"
+        )
 
     gcm_dataset.close()
     obs_dataset.close()
-    
+
     # Put together the parameters for `chickadee.ci`.
     # In the case for `pr`, the `units_bool` parameter is set to `False` to avoid converting the PRISM's `mm` units to the GCM's `mm/day` units.
     # In the case for `tasmean`, the `units_bool` parameter is set to `False` to avoid converting the PRISM's "celsius" units to the GCM's `K` units.
@@ -351,19 +379,24 @@ def output_to_dataset(resp):
     """Open downscaling/climate index output via its THREDDS location using netCDF4.Dataset for further examination."""
     url = resp.get()[0]
     if "wpsoutputs" in url:
-        thredds_url = thredds_base + "/birdhouse_wps_outputs" + url.split("wpsoutputs")[1]
+        thredds_url = (
+            thredds_base + "/birdhouse_wps_outputs" + url.split("wpsoutputs")[1]
+        )
     else:
         thredds_url = url.replace("fileServer", "dodsC")
     ds = Dataset(thredds_url)
     return ds
 
+
 class DefaultResponse:
     """This is a class to mock WPS responses so that users can use output URLs
-    generated during previous sessions in their current session for computing indices."""
+    generated during previous sessions in their current session for computing indices.
+    """
+
     def __init__(self, url):
         self.url = url
         self.status = "ProcessSucceeded"
-        
+
     def get(self):
         return (self.url,)
 
@@ -388,6 +421,7 @@ def add_previous_downscaled_outputs(urls):
         downscaled_outputs[varname].append(DefaultResponse(url))
         print(f"Added {url} to {varname} files to compute indices")
 
+
 def display_downscaled_outputs():
     """Display checkboxes for each downscaled
     output URL for users to state which ones will be used
@@ -401,7 +435,9 @@ def display_downscaled_outputs():
         downscaled_display.append(header)
         for downscaled_output in downscaled_outputs[var]:
             if downscaled_output.isComplete():
-                output_checkbox = Checkbox(description=downscaled_output.get()[0], style=description_style)
+                output_checkbox = Checkbox(
+                    description=downscaled_output.get()[0], style=description_style
+                )
                 output_checkbox.observe(handle_enable_indices)
                 downscaled_display.append(output_checkbox)
     downscaled_output_box = VBox(children=downscaled_display)
@@ -409,21 +445,29 @@ def display_downscaled_outputs():
 
 ##################### Functions for using finch to compute climate indices #####################################
 
+
 def setup_index_checkboxes(indices):
     """Set up checkboxes to enable users to select
     what indices to compute and on what time resolution.
     The available resolutions depend on what parameters the
     corresponding finch process has."""
     checkboxes = []
-    for (index, process) in indices.items():
+    for index, process in indices.items():
         options = all_res[:]
         if "month" in getfullargspec(process).args:
             options.extend(months)
         if "season" in getfullargspec(process).args:
             options.extend(seasons)
-        checkboxes.append(HBox(children=[Checkbox(description=index, style=description_style, disabled=True), Dropdown(options=options)]))
+        checkboxes.append(
+            HBox(
+                children=[
+                    Checkbox(description=index, style=description_style, disabled=True),
+                    Dropdown(options=options),
+                ]
+            )
+        )
     return checkboxes
-    
+
 
 def check_same_downscaled_params(dataset1, dataset2):
     """Check that the two datasets are identical outside
@@ -431,25 +475,41 @@ def check_same_downscaled_params(dataset1, dataset2):
     variables can be properly computed."""
     filename1 = dataset1.split("/")[-1]
     filename2 = dataset2.split("/")[-1]
-    params1 = filename1.split("_")[1:] # Get information excluding variable name
+    params1 = filename1.split("_")[1:]  # Get information excluding variable name
     params2 = filename2.split("_")[1:]
     return params1 == params2
+
 
 def handle_enable_indices(change):
     """Enable/disable the checkboxes for indices corresponding to their respective climate
     variable depending on what downscaled output datasets are selected."""
-    var_checkboxes = {"pr": pr_checkboxes, "tasmax": tasmax_checkboxes, "tasmin": tasmin_checkboxes, "tasmean": tasmean_checkboxes}
+    var_checkboxes = {
+        "pr": pr_checkboxes,
+        "tasmax": tasmax_checkboxes,
+        "tasmin": tasmin_checkboxes,
+        "tasmean": tasmean_checkboxes,
+    }
     enable = []
-    disable = [pr_checkboxes, tasmax_checkboxes, tasmin_checkboxes, tasmean_checkboxes, multivar_checkboxes]
+    disable = [
+        pr_checkboxes,
+        tasmax_checkboxes,
+        tasmin_checkboxes,
+        tasmean_checkboxes,
+        multivar_checkboxes,
+    ]
     global downscaled_output_selected
     for elem in downscaled_output_box.children:
-        if type(elem) != Checkbox: # Header for climate variable
+        if type(elem) != Checkbox:  # Header for climate variable
             continue
         basename = elem.description.split("/")[-1]
         var = basename.split("_")[0]
-        if not elem.value and elem in downscaled_output_selected[var]: # Remove dataset from selected datasets if present and box is unticked
+        if (
+            not elem.value and elem in downscaled_output_selected[var]
+        ):  # Remove dataset from selected datasets if present and box is unticked
             downscaled_output_selected[var].remove(elem)
-        if elem.value: # Dataset for this climate variable has been selected. Enable corresponding indices.
+        if (
+            elem.value
+        ):  # Dataset for this climate variable has been selected. Enable corresponding indices.
             if elem not in downscaled_output_selected[var]:
                 downscaled_output_selected[var].append(elem)
             if var_checkboxes[var] not in enable:
@@ -458,10 +518,15 @@ def handle_enable_indices(change):
 
     for tasmax_selected in downscaled_output_selected["tasmax"]:
         for tasmin_selected in downscaled_output_selected["tasmin"]:
-            if check_same_downscaled_params(tasmax_selected.description, tasmin_selected.description) and multivar_checkboxes not in enable:
+            if (
+                check_same_downscaled_params(
+                    tasmax_selected.description, tasmin_selected.description
+                )
+                and multivar_checkboxes not in enable
+            ):
                 enable.append(multivar_checkboxes)
                 disable.remove(multivar_checkboxes)
-                
+
     for boxes in enable:
         for box in boxes:
             box.children[0].disabled = False
@@ -469,23 +534,30 @@ def handle_enable_indices(change):
         for box in boxes:
             box.children[0].disabled = True
 
+
 output_widget_indices = Output()
+
 
 @output_widget_indices.capture()
 def compute_indices(downscaled_outputs_thredds, indices, checkboxes):
     """Set up parameters for the selected indices to compute and run the processes."""
     global index_outputs
-    for (process, box) in zip(indices, checkboxes):
+    for process, box in zip(indices, checkboxes):
         selected = box.children[0].value
         res = box.children[1].value
         if selected:
             params = setup_index_process_params(process, res)
-            downscaled_outputs_filenames = [url.split("/")[-1] for url in downscaled_outputs_thredds]
-            print(f"Computing {box.children[0].description} from {(' and ').join(downscaled_outputs_filenames)}.")
+            downscaled_outputs_filenames = [
+                url.split("/")[-1] for url in downscaled_outputs_thredds
+            ]
+            print(
+                f"Computing {box.children[0].description} from {(' and ').join(downscaled_outputs_filenames)}."
+            )
             print(f"Creating {params['output_name']}.nc")
             index_output = process(*downscaled_outputs_thredds, **params)
             index_outputs.append(index_output)
             print()
+
 
 def setup_index_process_params(process, res):
     """From the selected time resolution and slider value if applicable,
@@ -509,13 +581,25 @@ def setup_index_process_params(process, res):
         else:
             end = "annual"
 
-    index_output_names = {finch.sdii: "sdii", finch.cdd: "cdd", finch.cwd: "cwd", finch.wet_prcptot: "wet_prcptot",
-                         finch.ice_days: "ice_days", finch.tx_max: "tx_max", finch.tx_min: "tx_min",
-                         finch.frost_days: "frost_days", finch.tn_max: "tn_max", finch.tn_min: "tn_min",
-                         finch.growing_season_length: "growing_season_length", finch.cooling_degree_days: "cooling_degree_days",
-                         finch.freezing_degree_days: "freezing_degree_days", finch.growing_degree_days: "growing_degree_days",
-                         finch.heating_degree_days: "heating_degree_days", finch.dtr: "dtr", finch.freezethaw_spell_frequency: "freezethaw_days",
-                         }
+    index_output_names = {
+        finch.sdii: "sdii",
+        finch.cdd: "cdd",
+        finch.cwd: "cwd",
+        finch.wet_prcptot: "wet_prcptot",
+        finch.ice_days: "ice_days",
+        finch.tx_max: "tx_max",
+        finch.tx_min: "tx_min",
+        finch.frost_days: "frost_days",
+        finch.tn_max: "tn_max",
+        finch.tn_min: "tn_min",
+        finch.growing_season_length: "growing_season_length",
+        finch.cooling_degree_days: "cooling_degree_days",
+        finch.freezing_degree_days: "freezing_degree_days",
+        finch.growing_degree_days: "growing_degree_days",
+        finch.heating_degree_days: "heating_degree_days",
+        finch.dtr: "dtr",
+        finch.freezethaw_spell_frequency: "freezethaw_days",
+    }
     if process in index_output_names.keys():
         params.update({"output_name": index_output_names[process]})
         if process == finch.growing_degree_days:
@@ -524,51 +608,99 @@ def setup_index_process_params(process, res):
             params.update({"thresh": "5 degC"})
 
     elif process == finch.max_n_day_precipitation_amount:
-        params.update({"window": int(rxnday.value.split(" ")[0]), "output_name": "rx" + rxnday.value.split(" ")[0] + "day"})
+        params.update(
+            {
+                "window": int(rxnday.value.split(" ")[0]),
+                "output_name": "rx" + rxnday.value.split(" ")[0] + "day",
+            }
+        )
     elif process == finch.wetdays:
-        params.update({"thresh": rnnmm.value, "output_name": "r" + rnnmm.value.split(" ")[0] + "mm"})
+        params.update(
+            {
+                "thresh": rnnmm.value,
+                "output_name": "r" + rnnmm.value.split(" ")[0] + "mm",
+            }
+        )
     elif process == finch.tx_days_above:
-        params.update({"thresh": summer_days.value, "output_name": "summer_days_" + summer_days.value.split(" ")[0] + "C"})
+        params.update(
+            {
+                "thresh": summer_days.value,
+                "output_name": "summer_days_" + summer_days.value.split(" ")[0] + "C",
+            }
+        )
     else:
-        params.update({"thresh": tropical_nights.value, "output_name": "tropical_nights_" + tropical_nights.value.split(" ")[0] + "C"})
+        params.update(
+            {
+                "thresh": tropical_nights.value,
+                "output_name": "tropical_nights_"
+                + tropical_nights.value.split(" ")[0]
+                + "C",
+            }
+        )
 
     params["output_name"] += "_" + end
     return params
+
 
 def get_output_thredds_location(url):
     """Determine the location of the downscaled output on
     THREDDS so that it can be properly passed to finch."""
     if "wpsoutputs" in url:
         return thredds_base + "/birdhouse_wps_outputs" + url.split("wpsoutputs")[1]
-    else: # THREDDS location, but using HTTP. Replace with OPeNDAP
+    else:  # THREDDS location, but using HTTP. Replace with OPeNDAP
         return url.replace("fileServer", "dodsC")
+
 
 def handle_calc_indices(arg):
     """From the selected downscaled outputs, determine their location on THREDDS,
     and compute the selected indices."""
     for var in downscaled_output_selected.keys():
         for downscaled_output_checkbox in downscaled_output_selected[var]:
-            downscaled_output_thredds = get_output_thredds_location(downscaled_output_checkbox.description)
+            downscaled_output_thredds = get_output_thredds_location(
+                downscaled_output_checkbox.description
+            )
             if var == "pr":
-                compute_indices([downscaled_output_thredds], pr_indices.values(), pr_checkboxes)
+                compute_indices(
+                    [downscaled_output_thredds], pr_indices.values(), pr_checkboxes
+                )
             elif var == "tasmax":
-                compute_indices([downscaled_output_thredds], tasmax_indices.values(), tasmax_checkboxes)
+                compute_indices(
+                    [downscaled_output_thredds],
+                    tasmax_indices.values(),
+                    tasmax_checkboxes,
+                )
             elif var == "tasmin":
-                compute_indices([downscaled_output_thredds], tasmin_indices.values(), tasmin_checkboxes)
+                compute_indices(
+                    [downscaled_output_thredds],
+                    tasmin_indices.values(),
+                    tasmin_checkboxes,
+                )
             else:
-                compute_indices([downscaled_output_thredds], tasmean_indices.values(), tasmean_checkboxes)
+                compute_indices(
+                    [downscaled_output_thredds],
+                    tasmean_indices.values(),
+                    tasmean_checkboxes,
+                )
 
     for tasmax_selected in downscaled_output_selected["tasmax"]:
         tasmax_output_thredds = get_output_thredds_location(tasmax_selected.description)
         for tasmin_selected in downscaled_output_selected["tasmin"]:
-            tasmin_output_thredds = get_output_thredds_location(tasmin_selected.description)
-            if check_same_downscaled_params(tasmax_output_thredds, tasmin_output_thredds):
-                compute_indices([tasmin_output_thredds, tasmax_output_thredds], multivar_indices.values(), multivar_checkboxes)
+            tasmin_output_thredds = get_output_thredds_location(
+                tasmin_selected.description
+            )
+            if check_same_downscaled_params(
+                tasmax_output_thredds, tasmin_output_thredds
+            ):
+                compute_indices(
+                    [tasmin_output_thredds, tasmax_output_thredds],
+                    multivar_indices.values(),
+                    multivar_checkboxes,
+                )
 
-    
+
 ####################### Initialize interactive map and associated widgets ##################################
 
-description_style = {'description_width': 'initial'}
+description_style = {"description_width": "initial"}
 sub_layers = LayerGroup()
 
 mapnik = basemap_to_tiles(basemaps.OpenStreetMap.Mapnik)
@@ -591,11 +723,15 @@ m.add_control(legend)
 
 center_hover = Text(value="", placeholder="")
 center = Text(value="", placeholder="", description="Center:")
-region = Text(value="", placeholder="", description="Region name:", style=description_style)
+region = Text(
+    value="", placeholder="", description="Region name:", style=description_style
+)
 clim_vars = RadioButtons(
     options=["pr", "tasmax", "tasmin", "tasmean"], description="Climate variable:"
 )
-dataset = RadioButtons(options=["PNWNAmet (1945-2012)", "CMIP6 (1950-2100)"], description="Dataset:")
+dataset = RadioButtons(
+    options=["PNWNAmet (1945-2012)", "CMIP6 (1950-2100)"], description="Dataset:"
+)
 dataset.observe(handle_dataset_change)
 
 technique = RadioButtons(
@@ -617,7 +753,9 @@ scenario = RadioButtons(
     disabled=True,
 )
 period = RadioButtons(
-    options=["1950-2010", "1981-2100"], description="CMIP6 downscaled period:", disabled=True
+    options=["1950-2010", "1981-2100"],
+    description="CMIP6 downscaled period:",
+    disabled=True,
 )
 
 run_downscaling = Button(
@@ -655,55 +793,103 @@ downscaled_output_box = None
 downscaled_output_selected = {"pr": [], "tasmax": [], "tasmin": [], "tasmean": []}
 
 all_res = ["Annual", "Monthly", "Seasonal"]
-months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+months = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+]
 seasons = ["Winter-DJF", "Spring-MAM", "Summer-JJA", "Fall-SON"]
 
-rxnday = SelectionSlider(options=["1 day"] + [str(i) + " days" for i in range(2,11)], value="1 day")
-rnnmm = SelectionSlider(options=[str(i) + " mm/day" for i in range(1,31)], value="10 mm/day")
-pr_indices = {"Max N-day Precip Amount": finch.max_n_day_precipitation_amount,
-              "Simple Precip Intensity Index": finch.sdii,
-              "Days with Precip over N-mm": finch.wetdays,
-              "Maximum Length of Dry Spell": finch.cdd,
-              "Maximum Length of Wet Spell": finch.cwd,
-              "Total Wet-Day Precip": finch.wet_prcptot,
-             }
+rxnday = SelectionSlider(
+    options=["1 day"] + [str(i) + " days" for i in range(2, 11)], value="1 day"
+)
+rnnmm = SelectionSlider(
+    options=[str(i) + " mm/day" for i in range(1, 31)], value="10 mm/day"
+)
+pr_indices = {
+    "Max N-day Precip Amount": finch.max_n_day_precipitation_amount,
+    "Simple Precip Intensity Index": finch.sdii,
+    "Days with Precip over N-mm": finch.wetdays,
+    "Maximum Length of Dry Spell": finch.cdd,
+    "Maximum Length of Wet Spell": finch.cwd,
+    "Total Wet-Day Precip": finch.wet_prcptot,
+}
 pr_header = HTML(value="<b>Precipitation Indices</b>", style=description_style)
 pr_checkboxes = setup_index_checkboxes(pr_indices)
-pr_box = VBox(children=[pr_header, pr_checkboxes[0], rxnday, *pr_checkboxes[1:3], rnnmm, *pr_checkboxes[3:]])
+pr_box = VBox(
+    children=[
+        pr_header,
+        pr_checkboxes[0],
+        rxnday,
+        *pr_checkboxes[1:3],
+        rnnmm,
+        *pr_checkboxes[3:],
+    ]
+)
 
-summer_days = SelectionSlider(options=[str(i) + " degC" for i in range(20,31)], value="25 degC")
-tasmax_indices = {"Summer Days": finch.tx_days_above,
-                  "Ice Days": finch.ice_days,
-                  "Hottest Day": finch.tx_max,
-                  "Coldest Day": finch.tx_min,
-                 }
-tasmax_header = HTML(value="<b>Maximum Temperature Indices</b>", style=description_style)
+summer_days = SelectionSlider(
+    options=[str(i) + " degC" for i in range(20, 31)], value="25 degC"
+)
+tasmax_indices = {
+    "Summer Days": finch.tx_days_above,
+    "Ice Days": finch.ice_days,
+    "Hottest Day": finch.tx_max,
+    "Coldest Day": finch.tx_min,
+}
+tasmax_header = HTML(
+    value="<b>Maximum Temperature Indices</b>", style=description_style
+)
 tasmax_checkboxes = setup_index_checkboxes(tasmax_indices)
-tasmax_box = VBox(children=[tasmax_header, tasmax_checkboxes[0], summer_days, *tasmax_checkboxes[1:]])
+tasmax_box = VBox(
+    children=[tasmax_header, tasmax_checkboxes[0], summer_days, *tasmax_checkboxes[1:]]
+)
 
-tropical_nights = SelectionSlider(options=[str(i) + " degC" for i in range(10,31)], value = "20 degC")
-tasmin_indices = {"Frost Days": finch.frost_days,
-                  "Tropical Nights": finch.tropical_nights,
-                  "Hottest Night": finch.tn_max,
-                  "Coldest Night": finch.tn_min,
-                 }
-tasmin_header = HTML(value="<b>Minimum Temperature Indices</b>", style=description_style)
+tropical_nights = SelectionSlider(
+    options=[str(i) + " degC" for i in range(10, 31)], value="20 degC"
+)
+tasmin_indices = {
+    "Frost Days": finch.frost_days,
+    "Tropical Nights": finch.tropical_nights,
+    "Hottest Night": finch.tn_max,
+    "Coldest Night": finch.tn_min,
+}
+tasmin_header = HTML(
+    value="<b>Minimum Temperature Indices</b>", style=description_style
+)
 tasmin_checkboxes = setup_index_checkboxes(tasmin_indices)
-tasmin_box = VBox(children=[tasmin_header, *tasmin_checkboxes[:2], tropical_nights, *tasmin_checkboxes[2:]])
+tasmin_box = VBox(
+    children=[
+        tasmin_header,
+        *tasmin_checkboxes[:2],
+        tropical_nights,
+        *tasmin_checkboxes[2:],
+    ]
+)
 
-tasmean_indices = {"Growing Season Length": finch.growing_season_length,
-                   "Cooling Degree Days": finch.cooling_degree_days,
-                   "Freezing Degree Days": finch.freezing_degree_days,
-                   "Growing Degree Days": finch.growing_degree_days,
-                   "Heating Degree Days": finch.heating_degree_days,
-                  }
+tasmean_indices = {
+    "Growing Season Length": finch.growing_season_length,
+    "Cooling Degree Days": finch.cooling_degree_days,
+    "Freezing Degree Days": finch.freezing_degree_days,
+    "Growing Degree Days": finch.growing_degree_days,
+    "Heating Degree Days": finch.heating_degree_days,
+}
 tasmean_header = HTML(value="<b>Mean Temperature Indices</b>", style=description_style)
 tasmean_checkboxes = setup_index_checkboxes(tasmean_indices)
 tasmean_box = VBox(children=[tasmean_header, *tasmean_checkboxes])
 
-multivar_indices = {"Daily Temperature Range": finch.dtr,
-                    "Freeze-Thaw Days": finch.freezethaw_spell_frequency,
-                   }
+multivar_indices = {
+    "Daily Temperature Range": finch.dtr,
+    "Freeze-Thaw Days": finch.freezethaw_spell_frequency,
+}
 multivar_header = HTML(value="<b>Multivariate Indices</b>", style=description_style)
 multivar_checkboxes = setup_index_checkboxes(multivar_indices)
 multivar_box = VBox(children=[multivar_header, *multivar_checkboxes])
