@@ -15,10 +15,10 @@ from tempfile import NamedTemporaryFile
 from functools import partial
 
 # Instantiate the clients to the two birds. This instantiation also takes advantage of asynchronous execution by setting `progress` to True.
-host = os.getenv("BIRDHOUSE_HOST_URL", "marble-dev01.pcic.uvic.ca")
-chickadee_url = f"http://{host}:30102"
+host = os.getenv("BIRDHOUSE_HOST_URL", "https://marble-dev01.pcic.uvic.ca")
+chickadee_url = f"{host.replace('https', 'http')}:30102" # Dev version of chickadee
 chickadee = WPSClient(chickadee_url, progress=True)
-finch_url = f"https://{host}/twitcher/ows/proxy/finch/wps"
+finch_url = f"{host}/twitcher/ows/proxy/finch/wps"
 finch = WPSClient(finch_url, progress=True)
 
 # These outputs store the WPS responses to track the bird processes
