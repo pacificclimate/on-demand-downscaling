@@ -52,11 +52,10 @@ After obtaining high-resolution data in step 1, you can compute climate indices 
 | | Heating Degree Days | Heating Degree Days | 18 degC | heating_degree_days |
 | tasmin+tasmax | Daily Temperature Range | Daily Temperature Range | NA | dtr |
 | | Freeze-Thaw Days | Freeze-Thaw Days | 0 degC | freezethaw_spell_frequency |
-| pr+tasmax | Precipitation as Snow | Precip as Snow | 0 degC | prsn |
 
 After you specify which indices you want to compute, you can click on the `Calculate Indices` button to begin those processes. As for step 1, you can track them with progress bars that appear below the list, though approximate completion times are not available for all indices as they have not been tested extensively. From initial testing on the PNWNAmet data, we have found that the `Hottest Day` and `Coldest Night` indices take ~45 minutes, `Days with Precip over Threshold of N-mm` takes ~50 minutes, and `Growing Season Length` takes ~30 minutes. Also, as for step 1, you can check that the processes have completed successfully and download the output files.
 
-Please note that for indices requiring multiple variables, you can only compute these if the metadata (e.g. region name, dataset group, CMIP6 parameters if applicable) for your selected downscaled output files are identical. For example, if you wish to compute `Precip as Snow`, then your `pr` and `tasmax` files must have the same region name, dataset group, and CMIP6 parameters if applicable.
+Please note that for indices requiring multiple variables, you can only compute these if the metadata (e.g. region name, dataset group, CMIP6 parameters if applicable) for your selected downscaled output files are identical. For example, if you wish to compute `Daily Temperature Range`, then your `tasmin` and `tasmax` files must have the same region name, dataset group, and CMIP6 parameters if applicable.
 
 ## Additional Information
 

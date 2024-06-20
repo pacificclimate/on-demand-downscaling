@@ -496,7 +496,7 @@ def setup_index_process_params(process, res):
                          finch.frost_days: "frost_days", finch.tn_max: "tn_max", finch.tn_min: "tn_min",
                          finch.growing_season_length: "growing_season_length", finch.cooling_degree_days: "cooling_degree_days",
                          finch.freezing_degree_days: "freezing_degree_days", finch.growing_degree_days: "growing_degree_days",
-                         finch.heating_degree_days: "heating_degree_days", finch.dtr: "dtr", finch.freezethaw_spell_frequency: "freezethaw_days", finch.prsn: "prsn",
+                         finch.heating_degree_days: "heating_degree_days", finch.dtr: "dtr", finch.freezethaw_spell_frequency: "freezethaw_days",
                          }
     if process in index_output_names.keys():
         params.update({"output_name": index_output_names[process]})
@@ -504,8 +504,6 @@ def setup_index_process_params(process, res):
             params.update({"thresh": "18 degC"})
         elif process == finch.heating_degree_days:
             params.update({"thresh": "5 degC"})
-        elif process == finch.prsn:
-            params.update({"method": "auer"})
 
     elif process == finch.max_n_day_precipitation_amount:
         params.update({"window": int(rxnday.value.split(" ")[0]), "output_name": "rx" + rxnday.value.split(" ")[0] + "day"})
@@ -688,15 +686,14 @@ tasmean_indices = {"Growing Season Length": finch.growing_season_length,
                    "Heating Degree Days": finch.heating_degree_days,
                   }
 tasmean_header = HTML(value="<b>Mean Temperature Indices</b>", style=description_style)
-tasmean_checkboxes = setup_checkboxes(tasmean_indices)
+tasmean_checkboxes = setup_index_checkboxes(tasmean_indices)
 tasmean_box = VBox(children=[tasmean_header, *tasmean_checkboxes])
 
 multivar_indices = {"Daily Temperature Range": finch.dtr,
                     "Freeze-Thaw Days": finch.freezethaw_spell_frequency,
-                    "Precip as Snow": finch.prsn,
                    }
 multivar_header = HTML(value="<b>Multivariate Indices</b>", style=description_style)
-multivar_checkboxes = setup_checkboxes(multivar_indices)
+multivar_checkboxes = setup_index_checkboxes(multivar_indices)
 multivar_box = VBox(children=[multivar_header, *multivar_checkboxes])
 
 indices = HBox(children=[pr_box, tasmax_box, tasmin_box, tasmean_box, multivar_box])
