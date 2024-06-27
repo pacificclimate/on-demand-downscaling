@@ -1,0 +1,8 @@
+# Pycache
+__pycache__
+
+# R
+*.Rhistory
+
+# IPython
+.ipynb_checkpoints
