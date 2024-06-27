@@ -753,7 +753,7 @@ scenario = RadioButtons(
     disabled=True,
 )
 period = RadioButtons(
-    options=["1950-2010", "1981-2100"],
+    options=["1950-2010", "1981-2100", "1950-2100"],
     description="CMIP6 downscaled period:",
     disabled=True,
 )
