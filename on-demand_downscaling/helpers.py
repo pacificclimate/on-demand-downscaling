@@ -400,8 +400,6 @@ def handle_run_downscaling(arg):
         status_url = ci_process.statusLocation
         process_uuid = urlparse(status_url).path.split("/")[-1].replace(".xml", "")
         print(f"Downscaling process UUID: {process_uuid}")
-
-        # Get widget reference
         birdy_widget = captured.outputs[0].data[
             "application/vnd.jupyter.widget-view+json"
         ]["model_id"]
@@ -432,7 +430,7 @@ def handle_run_downscaling(arg):
 
             def status_checker():
                 while check_process_status():
-                    sleep(5)
+                    sleep(1)
 
             # Start status checking in a separate thread
             Thread(target=status_checker, daemon=True).start()
@@ -479,7 +477,7 @@ def handle_run_downscaling(arg):
                 run_downscaling.style.button_color = "lightgray"
                 run_downscaling.description = "Please Wait"
                 run_downscaling.tooltip = (
-                    "Cooldown period after cancellation (30 seconds)"
+                    "Cooldown period after cancellation (45 seconds)"
                 )
                 print("Run Downscaling button disabled - cooldown started")
 
@@ -489,10 +487,10 @@ def handle_run_downscaling(arg):
                     print("Existing timer cancelled")
 
                 # Start a new timer
-                cooldown_timer = Timer(30.0, restore_button)
+                cooldown_timer = Timer(45.0, restore_button)
                 cooldown_timer.daemon = True
                 cooldown_timer.start()
-                print(f"New 30-second timer started")
+                print(f"New 45-second timer started")
 
                 # Execute all original handlers
                 for handler in original_handlers:
