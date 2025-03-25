@@ -372,16 +372,16 @@ def handle_run_downscaling(arg):
             chickadee_params["pr_units"] = "mm/day"
     if dataset_name == "PNWNAmet":
         chickadee_params["out_file"] = (
-            f"{gcm_var}_{dataset_name}_1945-2012_{region_name}_on-demand.nc"
+            f"{gcm_var}_{dataset_name}_1945-2012_{region_name}.nc"
         )
     else:
         if not canesm5_run.disabled:
             chickadee_params["out_file"] = (
-                f"{gcm_var}_{dataset_name}_{technique.value}_{model.value}_{canesm5_run.value}_{scenario.value}_{period.value}_{region_name}_on-demand.nc"
+                f"{gcm_var}_{dataset_name}_{technique.value}_{model.value}_{canesm5_run.value}_{scenario.value}_{period.value}_{region_name}.nc"
             )
         else:
             chickadee_params["out_file"] = (
-                f"{gcm_var}_{dataset_name}_{technique.value}_{model.value}_{scenario.value}_{period.value}_{region_name}_on-demand.nc"
+                f"{gcm_var}_{dataset_name}_{technique.value}_{model.value}_{scenario.value}_{period.value}_{region_name}.nc"
             )
 
     print(f"Downscaling subset of {gcm_file.split('/')[-1]}")
@@ -450,7 +450,6 @@ def handle_run_downscaling(arg):
                 run_downscaling.tooltip = button_original_state["tooltip"]
 
             def custom_cancel(b):
-                """Custom cancel handler"""
                 global cooldown_timer, run_downscaling, button_original_state
 
                 print(f"Cancelling process UUID: {process_uuid}")
