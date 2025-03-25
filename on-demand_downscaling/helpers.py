@@ -400,6 +400,8 @@ def handle_run_downscaling(arg):
         status_url = ci_process.statusLocation
         process_uuid = urlparse(status_url).path.split("/")[-1].replace(".xml", "")
         print(f"Downscaling process UUID: {process_uuid}")
+
+        # Get widget reference
         birdy_widget = captured.outputs[0].data[
             "application/vnd.jupyter.widget-view+json"
         ]["model_id"]
@@ -407,35 +409,30 @@ def handle_run_downscaling(arg):
         cancel_button = find_cancel_button(widget_instance)
 
         if cancel_button:
-            # Initially hide the cancel button until we confirm the process is running
+            # Hide cancel button initially
             cancel_button.layout.display = "none"
 
-            # Function to check if process is running and show the cancel button
             def check_process_status():
                 try:
-                    # Get current status
                     status_response = requests.get(status_url)
                     if status_response.status_code == 200:
                         status_text = status_response.text
-                        # Check if process is running (not queued)
                         if "ProcessStarted" in status_text:
-                            # Process is running, show the cancel button
                             cancel_button.layout.display = "block"
-                            return False  # Stop checking
+                            return False  # Stop
                         elif (
                             "ProcessSucceeded" in status_text
                             or "ProcessFailed" in status_text
                         ):
-                            # Process completed or failed, no need to show cancel button
-                            return False  # Stop checking
-                    return True  # Continue checking
+                            return False  # Stop
+                    return True  # Continue
                 except Exception as e:
                     print(f"Error checking process status: {e}")
-                    return False  # Stop checking on error
+                    return False
 
             def status_checker():
                 while check_process_status():
-                    sleep(5)  # Check every 5 seconds
+                    sleep(5)
 
             # Start status checking in a separate thread
             Thread(target=status_checker, daemon=True).start()
@@ -458,7 +455,6 @@ def handle_run_downscaling(arg):
                 """Custom cancel handler"""
                 global cooldown_timer, run_downscaling, button_original_state
 
-                # Cancel process
                 print(f"Cancelling process UUID: {process_uuid}")
                 try:
                     url = f"{chickadee_url}/wps/cancel-process"
