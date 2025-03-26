@@ -410,30 +410,24 @@ def handle_run_downscaling(arg):
             # Hide cancel button initially
             cancel_button.layout.display = "none"
 
-            def check_process_status():
-                try:
-                    status_response = requests.get(status_url)
-                    if status_response.status_code == 200:
-                        status_text = status_response.text
-                        if "ProcessStarted" in status_text:
-                            cancel_button.layout.display = "block"
-                            return False  # Stop
-                        elif (
-                            "ProcessSucceeded" in status_text
-                            or "ProcessFailed" in status_text
-                        ):
-                            return False  # Stop
-                    return True  # Continue
-                except Exception as e:
-                    print(f"Error checking process status: {e}")
-                    return False
+            def find_progress_bar(widget):
+                if isinstance(widget, IntProgress):
+                    return widget
+                if hasattr(widget, "children"):
+                    for child in widget.children:
+                        found = find_progress_bar(child)
+                        if found:
+                            return found
+                return None
 
-            def status_checker():
-                while check_process_status():
-                    sleep(1)
+            def on_progress_change(change):
+                if change["new"] > 10:
+                    cancel_button.layout.display = "block"  # Make visible
+                    progress_bar.unobserve(on_progress_change, names="value")
 
-            # Start status checking in a separate thread
-            Thread(target=status_checker, daemon=True).start()
+            progress_bar = find_progress_bar(widget_instance)
+            if progress_bar:
+                progress_bar.observe(on_progress_change, names="value")
 
             # Save the original handlers before clearing them
             original_handlers = list(cancel_button._click_handlers.callbacks)
