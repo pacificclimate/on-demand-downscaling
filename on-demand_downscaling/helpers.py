@@ -1,11 +1,13 @@
 import os
 import numpy as np
+import requests
 from birdy import WPSClient
 from netCDF4 import Dataset, date2num
 from inspect import getfullargspec
 from datetime import date
 from datetime import datetime
 from time import sleep
+from threading import Thread, Timer
 from requests_html import HTMLSession
 from ipywidgets import *
 from ipyleaflet import *
@@ -13,10 +15,12 @@ from IPython import display as ipydisplay
 from xarray import open_mfdataset
 from tempfile import NamedTemporaryFile
 from functools import partial
+from urllib.parse import urlparse
+from IPython.utils.capture import capture_output
 
 # Instantiate the clients to the two birds. This instantiation also takes advantage of asynchronous execution by setting `progress` to True.
 host = os.getenv("BIRDHOUSE_HOST_URL", "https://marble-dev01.pcic.uvic.ca")
-chickadee_url = f"{host.replace('https', 'http')}:30102" # Dev version of chickadee
+chickadee_url = f"{host.replace('https', 'http')}:30102"  # Dev version of chickadee
 chickadee = WPSClient(chickadee_url, progress=True)
 finch_url = f"{host}/twitcher/ows/proxy/finch/wps"
 finch = WPSClient(finch_url, progress=True)
@@ -210,6 +214,32 @@ def concat_baseline_future(gcm_dataset, gcm_subset_file, gcm_time_range):
     return gcm_subset_file
 
 
+def find_cancel_button(widget):
+    """
+    Recursively finds a button with the description 'Cancel' in a widget hierarchy.
+    Returns:
+        ipywidgets.Button or None: The first matching button found, or None.
+    """
+    if isinstance(widget, Button) and widget.description.lower() == "cancel":
+        return widget
+    if hasattr(widget, "children"):
+        for child in widget.children:
+            found = find_cancel_button(child)
+            if found:
+                return found
+    return None
+
+
+button_original_state = {
+    "disabled": False,
+    "color": None,
+    "description": None,
+    "tooltip": None,
+}
+
+cooldown_timer = None
+
+
 @output_widget_downscaling.capture()
 def handle_run_downscaling(arg):
     """If all inputs to the interactive map have been provided,
@@ -341,18 +371,18 @@ def handle_run_downscaling(arg):
         if gcm_var == "pr":
             chickadee_params["pr_units"] = "mm/day"
     if dataset_name == "PNWNAmet":
-        chickadee_params[
-            "out_file"
-        ] = f"{gcm_var}_{dataset_name}_1945-2012_{region_name}_on-demand.nc"
+        chickadee_params["out_file"] = (
+            f"{gcm_var}_{dataset_name}_1945-2012_{region_name}.nc"
+        )
     else:
         if not canesm5_run.disabled:
-            chickadee_params[
-                "out_file"
-            ] = f"{gcm_var}_{dataset_name}_{technique.value}_{model.value}_{canesm5_run.value}_{scenario.value}_{period.value}_{region_name}_on-demand.nc"
+            chickadee_params["out_file"] = (
+                f"{gcm_var}_{dataset_name}_{technique.value}_{model.value}_{canesm5_run.value}_{scenario.value}_{period.value}_{region_name}.nc"
+            )
         else:
-            chickadee_params[
-                "out_file"
-            ] = f"{gcm_var}_{dataset_name}_{technique.value}_{model.value}_{scenario.value}_{period.value}_{region_name}_on-demand.nc"
+            chickadee_params["out_file"] = (
+                f"{gcm_var}_{dataset_name}_{technique.value}_{model.value}_{scenario.value}_{period.value}_{region_name}.nc"
+            )
 
     print(f"Downscaling subset of {gcm_file.split('/')[-1]}")
     print(f"Creating {chickadee_params['out_file']}")
@@ -361,9 +391,131 @@ def handle_run_downscaling(arg):
     else:
         approx_time = 12 if period.value == "1950-2010" else 24
     print(f"Approximate time to completion: {str(approx_time)} minutes")
-    global downscaled_outputs
-    downscaled_outputs[gcm_var].append(chickadee.ci(**chickadee_params))
-    print()
+
+    try:
+        with capture_output() as captured:
+            ci_process = chickadee.ci(**chickadee_params)
+
+        # Retrieve the UUID
+        status_url = ci_process.statusLocation
+        process_uuid = urlparse(status_url).path.split("/")[-1].replace(".xml", "")
+        print(f"Downscaling process UUID: {process_uuid}")
+        birdy_widget = captured.outputs[0].data[
+            "application/vnd.jupyter.widget-view+json"
+        ]["model_id"]
+        widget_instance = Widget.widgets[birdy_widget]
+        cancel_button = find_cancel_button(widget_instance)
+
+        if cancel_button:
+            # Hide cancel button initially
+            cancel_button.layout.display = "none"
+
+            def find_progress_bar(widget):
+                if isinstance(widget, IntProgress):
+                    return widget
+                if hasattr(widget, "children"):
+                    for child in widget.children:
+                        found = find_progress_bar(child)
+                        if found:
+                            return found
+                return None
+
+            def on_progress_change(change):
+                if change["new"] > 10:
+                    cancel_button.layout.display = "block"  # Make visible
+                    progress_bar.unobserve(on_progress_change, names="value")
+
+            progress_bar = find_progress_bar(widget_instance)
+            if progress_bar:
+                progress_bar.observe(on_progress_change, names="value")
+
+            # Save the original handlers before clearing them
+            original_handlers = list(cancel_button._click_handlers.callbacks)
+
+            # Clear existing handlers
+            cancel_button._click_handlers.callbacks.clear()
+
+            def restore_button():
+                """Function to restore the button to its original state"""
+                global run_downscaling, button_original_state
+                run_downscaling.disabled = button_original_state["disabled"]
+                run_downscaling.style.button_color = button_original_state["color"]
+                run_downscaling.description = button_original_state["description"]
+                run_downscaling.tooltip = button_original_state["tooltip"]
+
+            def custom_cancel(b):
+                global cooldown_timer, run_downscaling, button_original_state
+
+                print(f"Cancelling process UUID: {process_uuid}")
+                try:
+                    url = f"{chickadee_url}/wps/cancel-process"
+                    resp = requests.post(url, json={"uuid": process_uuid})
+                    if resp.status_code == 200:
+                        print(resp.json()["message"])
+                    else:
+                        print(
+                            f"Failed to cancel. Status {resp.status_code}: {resp.text}"
+                        )
+                except Exception as e:
+                    print(f"Error calling cancel_process: {e}")
+
+                # Save original button state if this is the first time
+                if button_original_state["description"] is None:
+                    button_original_state["color"] = run_downscaling.style.button_color
+                    button_original_state["description"] = run_downscaling.description
+                    button_original_state["tooltip"] = run_downscaling.tooltip
+
+                # Disable the Run Downscaling button
+                run_downscaling.disabled = True
+                run_downscaling.style.button_color = "lightgray"
+                run_downscaling.description = "Please Wait"
+                run_downscaling.tooltip = (
+                    "Cooldown period after cancellation (45 seconds)"
+                )
+                print("Run Downscaling button disabled - cooldown started")
+
+                # Cancel any existing timer
+                if cooldown_timer is not None and cooldown_timer.is_alive():
+                    cooldown_timer.cancel()
+                    print("Existing timer cancelled")
+
+                # Start a new timer
+                cooldown_timer = Timer(45.0, restore_button)
+                cooldown_timer.daemon = True
+                cooldown_timer.start()
+                print(f"New 45-second timer started")
+
+                # Execute all original handlers
+                for handler in original_handlers:
+                    try:
+                        handler(b)
+                    except Exception as e:
+                        print(f"Error with original handler: {str(e)}")
+
+            # Attach the new handler
+            cancel_button.on_click(custom_cancel)
+
+            # Display captured Birdy widget
+            ipydisplay.display(widget_instance)
+            global downscaled_outputs
+            downscaled_outputs[gcm_var].append(ci_process)
+            print()
+    except Exception as e:
+        error_message = str(e)
+        if (
+            "ServerBusy" in error_message
+            and "Maximum number of processes in queue reached" in error_message
+        ):
+            print("\n⚠️ SERVER BUSY")
+            print(
+                "The processing queue is currently full. Your job cannot be submitted at this time."
+            )
+            print("Please wait for jobs to complete and try again")
+        else:
+            print(f"\n⚠️ ERROR: An unexpected error occurred during downscaling:")
+            print(f"{str(e)}")
+            print("Please check your inputs and try again.")
+        print()
 
 
 def get_output(resp):
@@ -554,7 +706,25 @@ def compute_indices(downscaled_outputs_thredds, indices, checkboxes):
                 f"Computing {box.children[0].description} from {(' and ').join(downscaled_outputs_filenames)}."
             )
             print(f"Creating {params['output_name']}.nc")
-            index_output = process(*downscaled_outputs_thredds, **params)
+            with capture_output() as captured:
+                index_output = process(*downscaled_outputs_thredds, **params)
+
+            try:
+                birdy_widget = captured.outputs[0].data[
+                    "application/vnd.jupyter.widget-view+json"
+                ]["model_id"]
+                widget_instance = Widget.widgets[birdy_widget]
+
+                cancel_button = find_cancel_button(widget_instance)
+
+                if cancel_button:
+                    cancel_button.layout.display = "none"
+                # Display progress bar without cancel option
+                ipydisplay.display(widget_instance)
+            except (KeyError, IndexError, AttributeError) as e:
+                print(f"Note: Unable to access widget: {str(e)}")
+            except Exception as e:
+                print(f"Error handling widget: {str(e)}")
             index_outputs.append(index_output)
             print()
 
@@ -654,6 +824,7 @@ def get_output_thredds_location(url):
 def handle_calc_indices(arg):
     """From the selected downscaled outputs, determine their location on THREDDS,
     and compute the selected indices."""
+
     for var in downscaled_output_selected.keys():
         for downscaled_output_checkbox in downscaled_output_selected[var]:
             downscaled_output_thredds = get_output_thredds_location(
