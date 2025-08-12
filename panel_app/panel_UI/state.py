@@ -23,6 +23,22 @@ def get_main_pane():
     return doc.main_pane
 
 
+def get_help_pane():
+    doc = pn.state.curdoc
+    if not hasattr(doc, "help_pane"):
+        doc.help_pane = pn.pane.Markdown("", width=600, min_height=100)
+    return doc.help_pane
+
+
+def update_help(step):
+    file = STEP_README_FILES.get(step)
+    help_pane = get_help_pane()
+    if file and file.exists():
+        help_pane.object = file.read_text()
+    else:
+        help_pane.object = "*No help available for this step.*"
+
+
 STEP_README_FILES = {
     0: Path(__file__).parent / "help_docs/STEP1.md",
     1: Path(__file__).parent / "help_docs/STEP2.md",
@@ -30,17 +46,6 @@ STEP_README_FILES = {
     3: Path(__file__).parent / "help_docs/STEP4.md",
     4: Path(__file__).parent / "help_docs/STEP5.md",
 }
-
-# Pane to show the current readme
-help_pane = pn.pane.Markdown("", width=600, min_height=100)
-
-
-def update_help(step):
-    file = STEP_README_FILES.get(step)
-    if file and file.exists():
-        help_pane.object = file.read_text()
-    else:
-        help_pane.object = "*No help available for this step.*"
 
 
 def render():
