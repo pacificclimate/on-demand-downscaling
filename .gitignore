@@ -6,3 +6,5 @@ __pycache__
 
 # IPython
 .ipynb_checkpoints
+
+.env
