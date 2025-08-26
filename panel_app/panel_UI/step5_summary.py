@@ -10,6 +10,7 @@ from .config import INDEX_FUNCTIONS_STRUCTURE, PARAMS_TO_WATCH
 from rq import Queue
 from rq.job import Job
 import redis
+import pprint
 
 # Connect to Redis
 redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -22,6 +23,8 @@ QUEUE_NOTE = (
     "it could take a few hours. You’ll receive an email when your results are ready."
 )
 
+TEAM_ALERTS_EMAIL = os.environ.get("SMTP_FROM")
+
 
 def get_queue_position(job, queue):
     job_ids = queue.job_ids
@@ -29,6 +32,31 @@ def get_queue_position(job, queue):
         return job_ids.index(job.id) + 1
     except ValueError:
         return None
+
+
+def notify_on_failure(job, connection, exc_type, exc_value, traceback):
+    subject = f"On-demand downscaling Job Failure: {job.id}"
+    user_email = job.meta.get("user_email")
+    if job.args:
+        formatted_args = pprint.pformat(job.args, indent=2, width=80)
+    # Email to user
+    if user_email:
+        user_body = (
+            f"Unfortunately your On-demand downscaling job (ID: {job.id}) failed.\n\n"
+            "The PCIC team has been notified and is investigating."
+        )
+        send_summary_email(user_email, subject, user_body)
+
+    # Email to team
+    team_body = (
+        f"ODDS job failed\n\n"
+        f"**Job ID:** {job.id}\n"
+        f"**Function:** {job.func_name}\n"
+        f"**Args:** {formatted_args}\n"
+        f"**Error:** {exc_type.__name__}: {exc_value}\n\n"
+        f"---\n\n"
+    )
+    send_summary_email(TEAM_ALERTS_EMAIL, subject, team_body)
 
 
 def step5_summary_view():
@@ -111,8 +139,10 @@ def step5_summary_view():
             job_params,
             job_timeout=60 * 60 * 6,
             result_ttl=60 * 60 * 24 * 7,
+            on_failure="panel_app.panel_UI.step5_summary.notify_on_failure",
         )
-
+        job.meta["user_email"] = user_email
+        job.save()
         pos = get_queue_position(job, q)
 
         summary = summary_markdown(state)
