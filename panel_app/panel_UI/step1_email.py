@@ -1,16 +1,71 @@
 import panel as pn
 import requests
+import os, re
 from .state import get_state
 from .config import MAGPIE_URL
 
 pn.extension()
+
+# https://github.com/Ouranosinc/Magpie/blob/595602d2cebae94223b952f0cf04a1caa64f6546/magpie/api/management/user/user_utils.py#L66
+USERNAME_REGEX = re.compile(r"^[a-z0-9]+(?:[_\-\.][a-z0-9]+)*$")
+
+# https://pavics-magpie.readthedocs.io/en/latest/configuration.html#envvar-MAGPIE_PASSWORD_MIN_LENGTH
+MIN_PASSWORD_LEN = 12
+
+EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def looks_like_email(text: str) -> bool:
+    return bool(EMAIL_REGEX.match(text.strip()))
+
+
+def validate_registration(username: str, email: str, password: str):
+    errs = []
+    u = (username or "").strip()
+    e = (email or "").strip()
+    p = password or ""
+
+    if not u:
+        errs.append("Username is required.")
+    else:
+        if len(u) > 64:
+            errs.append(
+                "Username must be at most 64 characters long."
+            )  # https://pavics-magpie.readthedocs.io/en/latest/configuration.html#envvar-MAGPIE_USER_NAME_MAX_LENGTH
+        if not USERNAME_REGEX.match(u):
+            errs.append(
+                "Username must be lowercase letters or digits, with optional (_ . -) separators between them."
+            )
+    if not e:
+        errs.append("Email is required.")
+    elif not looks_like_email(e):
+        errs.append("Email does not look valid.")
+
+    if u and looks_like_email(u):
+        errs.append("Username must not be an email address.")
+    if u and e and u.lower() == e.lower():
+        errs.append("Username must be different from your email.")
+    if len(p) < MIN_PASSWORD_LEN:
+        errs.append(f"Password must be at least {MIN_PASSWORD_LEN} characters long.")
+    return errs
 
 
 def step1_authentication(next_step):
     state = get_state()
     signin_panel = pn.Column(width=500, margin=(20, 20))
 
-    message = pn.pane.Markdown("")
+    message = pn.pane.Markdown("", sizing_mode="stretch_width")
+
+    def show_message(msg, level="danger"):
+        colors = {
+            "success": "green",
+            "warning": "orange",
+            "danger": "red",
+            "info": "blue",
+        }
+        color = colors.get(level, "black")
+        message.object = f"<span style='color:{color}; font-weight:bold'>{msg}</span>"
+        message.markdown = False
 
     user = getattr(state, "user", None)
     is_auth = getattr(state, "authenticated", False)
@@ -76,6 +131,7 @@ def step1_authentication(next_step):
 
     def login_user(event):
         state = get_state()
+        login_submit.disabled = True
         try:
             session = requests.Session()
 
@@ -93,20 +149,15 @@ def step1_authentication(next_step):
 
             if response.status_code == 200:
                 # Extract auth_tkt cookie
-                auth_cookie = None
-                for cookie in session.cookies:
-                    if cookie.name == "auth_tkt":
-                        auth_cookie = cookie.value
-                        break
-
+                auth_cookie = next(
+                    (c.value for c in session.cookies if c.name == "auth_tkt"), None
+                )
                 if not auth_cookie:
-                    message.object = "⚠️ No auth_tkt cookie found after login"
+                    show_message("⚠️ No auth_tkt cookie found after login.", "warning")
                     return
-
                 session_check = requests.get(
                     f"{MAGPIE_URL}/session", cookies=session.cookies
                 )
-
                 if session_check.status_code == 200 and session_check.json().get(
                     "authenticated"
                 ):
@@ -119,17 +170,42 @@ def step1_authentication(next_step):
                     state.user = username
                     state.email = email
                     pn.state.cookies.update({"auth_tkt": auth_cookie})
+                    show_message(f"Welcome, **{username}**!", "success")
                     next_step()
-                else:
-                    message.object = (
-                        "⚠️ Login succeeded but /session did not confirm authentication."
-                    )
+            elif response.status_code == 401:
+                show_message(
+                    "Invalid username or password. Please try again.", "danger"
+                )
+                login_password.value = ""
             else:
-                message.object = f"❌ Login failed: {response.status_code}"
+                try:
+                    detail = response.json().get("detail")
+                except Exception:
+                    detail = response.text.strip()
+                show_message(
+                    f"Login failed ({response.status_code}): {detail}", "danger"
+                )
+
+        except requests.Timeout:
+            show_message(
+                "Server did not respond in time. Please try again later.", "warning"
+            )
         except Exception as e:
-            message.object = f"🚨 Login error: {str(e)}"
+            show_message(f"Login error: {e}", "danger")
+        finally:
+            login_submit.disabled = False
 
     def register_user(event):
+        errs = validate_registration(
+            reg_username.value, reg_email.value, reg_password.value
+        )
+        if errs:
+            show_message(
+                "Please fix the following:<br>• " + "<br>• ".join(errs), "warning"
+            )
+            return
+        reg_submit.disabled = True
+        reg_submit.name = "Registering…"
         try:
             response = requests.post(
                 f"{MAGPIE_URL}/register/users",
@@ -138,21 +214,41 @@ def step1_authentication(next_step):
                     "Accept": "application/json",
                 },
                 json={
-                    "user_name": reg_username.value,
-                    "email": reg_email.value,
+                    "user_name": reg_username.value.strip(),
+                    "email": reg_email.value.strip(),
                     "password": reg_password.value,
                 },
+                timeout=10,
             )
             if response.status_code == 201:
-                message.object = "✅ Registration successful! Check your email."
+                show_message(
+                    "✅ Registration successful! Check your email to confirm.",
+                    "success",
+                )
             elif response.status_code == 409:
-                message.object = "⚠️ This user is already pending registration."
+                show_message(
+                    "A user with this username or email already exists or is pending registration.",
+                    "warning",
+                )
+            elif response.status_code == 400:
+                try:
+                    data = response.json()
+                    srv_errs = data.get("errors") or data.get("detail") or response.text
+                    if isinstance(srv_errs, list):
+                        srv_errs = "<br>• " + "<br>• ".join(map(str, srv_errs))
+                    show_message(f"❌ Registration failed:<br>{srv_errs}", "danger")
+                except Exception:
+                    show_message(f"❌ Registration failed: {response.text}", "danger")
             else:
-                message.object = (
-                    f"❌ Registration failed: {response.status_code}, {response.text}"
+                show_message(
+                    f"❌ Registration failed ({response.status_code}): {response.text}",
+                    "danger",
                 )
         except Exception as e:
-            message.object = f"🚨 Registration error: {str(e)}"
+            show_message(f"🚨 Registration error: {e}", "danger")
+        finally:
+            reg_submit.disabled = False
+            reg_submit.name = "Register"
 
     def go_to_register(event):
         login_form.visible = False
