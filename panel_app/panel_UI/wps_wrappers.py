@@ -18,6 +18,7 @@ from .panel_helpers import (
 
 from requests_html import HTMLSession
 from netCDF4 import Dataset
+from time import sleep
 
 
 def run_single_downscaling(ds_params):
