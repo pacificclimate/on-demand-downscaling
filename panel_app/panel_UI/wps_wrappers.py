@@ -73,7 +73,7 @@ def run_single_downscaling(ds_params):
                 break
         gcm_file = f"{THREDDS_BASE}/storage/data/climate/downscale/{technique_dir}/CMIP6_{technique}/{model_dir}/{file}"
 
-    obs_file = f"{THREDDS_BASE}/storage/data/climate/PRISM/dataportal/{obs_var}_monClim_PRISM_historical_run1_198101-201012.nc"
+    obs_file = f"{THREDDS_BASE}/storage/data/climate/observations/gridded/Canada_mosaic_30arcsec/{obs_var}_monClim_Canada_mosaic_30arcsec_198101-201012.nc"
     print(f"Using GCM file: {gcm_file}")
     print(f"Using Obs file: {obs_file}")
     gcm_dataset = Dataset(gcm_file)

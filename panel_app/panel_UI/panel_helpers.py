@@ -35,6 +35,31 @@ def in_bc(point):
     return True
 
 
+def in_canada(point):
+    """Check if a given point is within
+    the Canada mosaic grid."""
+    ca = f"{THREDDS_BASE}/storage/data/climate/observations/gridded/Canada_mosaic_30arcsec/tmin_monClim_Canada_mosaic_30arcsec_198101-201012.nc"
+    ca_data = Dataset(ca)
+    ca_lat = ca_data.variables["lat"][:]
+    ca_lon = ca_data.variables["lon"][:]
+    # Check if center point is within lat/lon grid
+    if (
+        (point[0] < ca_lat[0])
+        or (point[0] > ca_lat[-1])
+        or (point[1] < ca_lon[0])
+        or (point[1] > ca_lon[-1])
+    ):
+        return False
+    # Check if center point is closest to a masked data value
+    else:
+        lat_index = np.argmin(np.abs(ca_lat - point[0]))
+        lon_index = np.argmin(np.abs(ca_lon - point[1]))
+        tmin = ca_data.variables["tmin"][0, lat_index, lon_index]
+        if tmin.mask:
+            return False
+    return True
+
+
 def get_subdomain(lat_min, lat_max, lon_min, lon_max, color, name):
     """Create a rectangle with the vertices at the lat/lon coordinates
     of the chosen subdomain. Blue is the GCM, and red is the PRISM observations."""

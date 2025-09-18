@@ -7,8 +7,49 @@ from .widgets import (
     build_panel_continue_button,
 )
 from .user_warnings import user_warn, get_user_warning_pane
-from .panel_helpers import get_subdomain, in_bc, get_models
+from .panel_helpers import (
+    get_subdomain,
+    in_canada,
+    in_bc,
+    get_models,
+)
 from .config import *
+
+
+def apply_location_rules(pt, controls, state):
+    """
+    Returns True if the center point is inside Canada, else False.
+    Also enforces BC rule:
+      - outside BC: dataset -> CanDCS + disable widget (one-time warning)
+      - inside BC:  re-enable dataset widget
+    """
+
+    if not in_canada(pt):
+        user_warn("Please select a point within Canada.\n")
+        return False
+
+    doc = pn.state.curdoc
+    inside = in_bc(pt)
+    prev_inside = getattr(doc, "last_inside_bc", None)
+
+    if not inside:
+        # Force CanDCS when outside BC
+        if controls["dataset"].value != "CanDCS":
+            controls["dataset"].value = "CanDCS"
+        controls["dataset"].disabled = True
+        state.dataset = "CanDCS"
+        # Warn once on transition outside-BC
+        if prev_inside is True or prev_inside is None:
+            user_warn("Outside BC: dataset locked to **CanDCS**.", "light")
+    else:
+        # Back in BC: allow switching again
+        previously_outside = prev_inside is False
+        controls["dataset"].disabled = False
+        if previously_outside:
+            user_warn("Back in BC: **PCIC-Blend** is available again.", "light")
+
+    doc.last_inside_bc = inside
+    return True
 
 
 def shift_box(dx=0, dy=0):
@@ -23,8 +64,7 @@ def shift_box(dx=0, dy=0):
     # Move by full box (0.5°)
     lat, lon = map_widget.center_point
     new_pt = (lat + dy, lon + dx)
-    if not in_bc(new_pt):
-        user_warn("Box would move outside of BC.\n")
+    if controls and not apply_location_rules(new_pt, controls, state):
         return
     state.center_point = new_pt
 
@@ -159,8 +199,7 @@ def step2_region_view():
         controls["center_hover"].value = str(pt)
         if kwargs.get("type") != "click" or "coordinates" not in kwargs:
             return
-        if not in_bc(pt):
-            user_warn("Please select a point within BC.\n")
+        if not apply_location_rules(pt, controls, state):
             return
 
         marker, gcm_layer, obs_layer, bounds = make_overlay_layers(pt)
