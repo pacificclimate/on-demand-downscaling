@@ -5,14 +5,10 @@ from .config import MAGPIE_URL
 import requests
 
 
-class State(AppState):
-    pass
-
-
-def get_state():
+def get_state() -> AppState:
     doc = pn.state.curdoc
     if not hasattr(doc, "app_state"):
-        doc.app_state = State()
+        doc.app_state = AppState()
     return doc.app_state
 
 
