@@ -12,7 +12,7 @@ USERNAME_REGEX = re.compile(r"^[a-z0-9]+(?:[_\-\.][a-z0-9]+)*$")
 # https://pavics-magpie.readthedocs.io/en/latest/configuration.html#envvar-MAGPIE_PASSWORD_MIN_LENGTH
 MIN_PASSWORD_LEN = 12
 
-EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+EMAIL_REGEX = re.compile(r"^[^@\s]+@((?:[^@\s.]+\.)+[^@\s.]+|\[[0-9A-Fa-f:.]+\])$")
 
 
 def looks_like_email(text: str) -> bool:
