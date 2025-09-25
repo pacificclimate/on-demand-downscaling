@@ -11,45 +11,57 @@ from .panel_helpers import (
     get_subdomain,
     in_canada,
     in_bc,
+    in_gcm_for_vars,
     get_models,
 )
 from .config import *
 
 
-def apply_location_rules(pt, controls, state):
-    """
-    Returns True if the center point is inside Canada, else False.
-    Also enforces BC rule:
-      - outside BC: dataset -> CanDCS + disable widget (one-time warning)
-      - inside BC:  re-enable dataset widget
-    """
+def validate_point(pt):
+    # keep state in sync with widgets
+    update_state_from_controls()
+    state = get_state()
 
-    if not in_canada(pt):
-        user_warn("Please select a point within Canada.\n")
+    use_bc = state.obs_domain == "BC PRISM"
+    obs_ok = in_bc(pt) if use_bc else in_canada(pt)
+    # Filter multivar, default to pr if none
+    selected_vars = [
+        v for v in (state.selected_variables or []) if v != "multivar"
+    ] or ["pr"]
+    gcm_ok = in_gcm_for_vars(pt, state, selected_vars)
+
+    if not obs_ok and not gcm_ok:
+        user_warn(
+            "Point is outside BOTH the chosen observations mask and the GCM mask.",
+            "warning",
+        )
         return False
-
-    doc = pn.state.curdoc
-    inside = in_bc(pt)
-    prev_inside = getattr(doc, "last_inside_bc", None)
-
-    if not inside:
-        # Force CanDCS when outside BC
-        if controls["dataset"].value != "CanDCS":
-            controls["dataset"].value = "CanDCS"
-        controls["dataset"].disabled = True
-        state.dataset = "CanDCS"
-        # Warn once on transition outside-BC
-        if prev_inside is True or prev_inside is None:
-            user_warn("Outside BC: dataset locked to **CanDCS**.", "light")
-    else:
-        # Back in BC: allow switching again
-        previously_outside = prev_inside is False
-        controls["dataset"].disabled = False
-        if previously_outside:
-            user_warn("Back in BC: **PCIC-Blend** is available again.", "light")
-
-    doc.last_inside_bc = inside
+    if not obs_ok:
+        user_warn(
+            f"Point is outside the observations domain. ({state.obs_domain})", "warning"
+        )
+        return False
+    if not gcm_ok:
+        user_warn(
+            "Point is outside the GCM mask for one or more selected variables.",
+            "warning",
+        )
+        return False
     return True
+
+
+def clear_overlay(map_widget, controls, state):
+    if (
+        hasattr(map_widget, "active_overlay")
+        and map_widget.active_overlay in map_widget.layers
+    ):
+        map_widget.remove_layer(map_widget.active_overlay)
+    if hasattr(map_widget, "active_overlay"):
+        delattr(map_widget, "active_overlay")
+    state.center_point = None
+    state.map_bounds = {}
+    if "center" in controls:
+        controls["center"].value = ""
 
 
 def shift_box(dx=0, dy=0):
@@ -64,7 +76,7 @@ def shift_box(dx=0, dy=0):
     # Move by full box (0.5°)
     lat, lon = map_widget.center_point
     new_pt = (lat + dy, lon + dx)
-    if controls and not apply_location_rules(new_pt, controls, state):
+    if not validate_point(new_pt):
         return
     state.center_point = new_pt
 
@@ -192,6 +204,34 @@ def step2_region_view():
     # Force create a fresh map widget to avoid reference conflicts
     map_widget = get_map_widget(force_new=True)
     controls = get_controls()
+    obs_toggle = controls.get("obs_domain", None)
+
+    if obs_toggle is not None:
+
+        def _on_obs_domain_change(event):
+            pt = state.center_point
+            if not pt:
+                return
+            if event["new"] == "BC PRISM" and not in_bc(pt):
+                clear_overlay(map_widget, controls, state)
+                user_warn(
+                    "Switched to **BC PRISM**: the current box is outside BC, so it was removed. Click a location in BC.",
+                    "light",
+                )
+                return
+            if validate_point(pt):
+                marker, gcm_layer, obs_layer, bounds = make_overlay_layers(pt)
+                if (
+                    hasattr(map_widget, "active_overlay")
+                    and map_widget.active_overlay in map_widget.layers
+                ):
+                    map_widget.remove_layer(map_widget.active_overlay)
+                overlay_group = LayerGroup(layers=(marker, gcm_layer, obs_layer))
+                map_widget.add_layer(overlay_group)
+                map_widget.active_overlay = overlay_group
+                state.map_bounds = bounds
+
+        obs_toggle.observe(_on_obs_domain_change, names="value")
     control_box = controls["control_box_downscaling"]
 
     def handle_interact(**kwargs):
@@ -199,7 +239,8 @@ def step2_region_view():
         controls["center_hover"].value = str(pt)
         if kwargs.get("type") != "click" or "coordinates" not in kwargs:
             return
-        if not apply_location_rules(pt, controls, state):
+
+        if not validate_point(pt):
             return
 
         marker, gcm_layer, obs_layer, bounds = make_overlay_layers(pt)
@@ -222,12 +263,14 @@ def step2_region_view():
     # Re-create overlay if there's a saved center point
     if state.center_point is not None:
         pt = state.center_point
-        marker, gcm_layer, obs_layer, bounds = make_overlay_layers(pt)
-        overlay_group = LayerGroup(layers=(marker, gcm_layer, obs_layer))
-        map_widget.add_layer(overlay_group)
-        map_widget.active_overlay = overlay_group
-        map_widget.center_point = pt
-        controls["center"].value = str(pt)
+        if validate_point(pt):
+            marker, gcm_layer, obs_layer, bounds = make_overlay_layers(pt)
+            overlay_group = LayerGroup(layers=(marker, gcm_layer, obs_layer))
+            map_widget.add_layer(overlay_group)
+            map_widget.active_overlay = overlay_group
+            map_widget.center_point = pt
+            controls["center"].value = str(pt)
+            state.map_bounds = bounds
 
     doc = pn.state.curdoc
     if not getattr(doc, "dpad_wired", False):
@@ -249,7 +292,8 @@ def step2_region_view():
             missing.append("Study Area")
         if not state.selected_variables:
             missing.append("Climate Variable")
-        if state.dataset == "CMIP6":
+        is_cmip6 = state.internal_dataset == "CMIP6"
+        if is_cmip6:
             for key in ["technique", "model", "scenario", "period"]:
                 if not getattr(state, key):
                     missing.append(key.capitalize())

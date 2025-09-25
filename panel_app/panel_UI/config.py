@@ -17,6 +17,7 @@ THREDDS_CATALOG = f"{BIRDHOUSE_HOST_URL}/twitcher/ows/proxy/thredds/catalog/data
 chickadee = WPSClient(CHICKADEE_URL, progress=True)
 finch = WPSClient(FINCH_URL, progress=True)
 
+SHOW_OBS_DOMAIN = True  # Temp for RCI to compare Canada vs BC PRISM
 label_map = {
     "center_point": "Location on the map",
     "region": "Study Area",

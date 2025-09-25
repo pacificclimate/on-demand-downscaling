@@ -10,52 +10,109 @@ from IPython import display as ipydisplay
 from .config import *
 
 
-def in_bc(point):
-    """Check if a given point is within
-    the BC PRISM grid."""
-    bc = f"{THREDDS_BASE}/storage/data/climate/PRISM/dataportal/pr_monClim_PRISM_historical_run1_198101-201012.nc"
-    bc_data = Dataset(bc)
-    bc_lat = bc_data.variables["lat"][:]
-    bc_lon = bc_data.variables["lon"][:]
-    # Check if center point is within lat/lon grid
-    if (
-        (point[0] < bc_lat[0])
-        or (point[0] > bc_lat[-1])
-        or (point[1] < bc_lon[0])
-        or (point[1] > bc_lon[-1])
-    ):
-        return False
-    # Check if center point is closest to a masked data value
-    else:
-        lat_index = np.argmin(np.abs(bc_lat - point[0]))
-        lon_index = np.argmin(np.abs(bc_lon - point[1]))
-        pr = bc_data.variables["pr"][0, lat_index, lon_index]
-        if pr.mask:
+def _point_in_mask(nc_url, varname, point, latvar="lat", lonvar="lon", time_index=0):
+    """
+    Check if (lat, lon) is within [lat, lon] bounds of nc_url and not masked/missing
+    at the nearest grid cell for `varname`.
+    """
+    with Dataset(nc_url) as ds:
+        lat = ds.variables[latvar][:]
+        lon = ds.variables[lonvar][:]
+        plat, plon = float(point[0]), float(point[1])
+
+        if plat < lat[0] or plat > lat[-1] or plon < lon[0] or plon > lon[-1]:
             return False
-    return True
+
+        lat_index = int(np.argmin(np.abs(lat - plat)))
+        lon_index = int(np.argmin(np.abs(lon - plon)))
+
+        var = ds.variables[varname]
+        cell = (
+            var[time_index, lat_index, lon_index]
+            if getattr(var, "ndim", 2) == 3
+            else var[lat_index, lon_index]
+        )
+
+        # masked array?
+        if np.ma.isMaskedArray(cell) and np.ma.getmask(cell):
+            return False
+
+        # plain scalar: NaN or fill/missing?
+        try:
+            val = float(cell)
+        except Exception:
+            return True
+
+        if np.isnan(val):
+            return False
+
+        for attr in ("_FillValue", "missing_value"):
+            if hasattr(var, attr):
+                mv = getattr(var, attr)
+                mv_list = (
+                    list(mv)
+                    if np.iterable(mv) and not isinstance(mv, (str, bytes))
+                    else [mv]
+                )
+                for mvv in mv_list:
+                    try:
+                        if mvv is not None and float(val) == float(mvv):
+                            return False
+                    except Exception:
+                        pass
+        return True
+
+
+def in_bc(point):
+    url = f"{THREDDS_BASE}/storage/data/climate/PRISM/dataportal/pr_monClim_PRISM_historical_run1_198101-201012.nc"
+    return _point_in_mask(url, "pr", point)
 
 
 def in_canada(point):
-    """Check if a given point is within
-    the Canada mosaic grid."""
-    ca = f"{THREDDS_BASE}/storage/data/climate/observations/gridded/Canada_mosaic_30arcsec/tmin_monClim_Canada_mosaic_30arcsec_198101-201012.nc"
-    ca_data = Dataset(ca)
-    ca_lat = ca_data.variables["lat"][:]
-    ca_lon = ca_data.variables["lon"][:]
-    # Check if center point is within lat/lon grid
-    if (
-        (point[0] < ca_lat[0])
-        or (point[0] > ca_lat[-1])
-        or (point[1] < ca_lon[0])
-        or (point[1] > ca_lon[-1])
-    ):
-        return False
-    # Check if center point is closest to a masked data value
-    else:
-        lat_index = np.argmin(np.abs(ca_lat - point[0]))
-        lon_index = np.argmin(np.abs(ca_lon - point[1]))
-        tmin = ca_data.variables["tmin"][0, lat_index, lon_index]
-        if tmin.mask:
+    url = f"{THREDDS_BASE}/storage/data/climate/observations/gridded/Canada_mosaic_30arcsec/pr_monClim_Canada_mosaic_30arcsec_198101-201012.nc"
+    return _point_in_mask(url, "pr", point)
+
+
+def resolve_gcm_mask_url(state, gcm_var):
+    """
+    Return (url, var) for gcm_var.
+    Assumes UI guarantees: if dataset == CMIP6, then scenario is selected.
+    """
+    internal_ds = getattr(state, "internal_dataset", None)  # "PNWNAmet" | "CMIP6"
+    internal_tech = getattr(state, "internal_technique", None)  # "BCCAQv2" | "MBCn"
+    model = (getattr(state, "model", "") or "").strip()
+    scenario = (getattr(state, "scenario", "") or "").strip()
+
+    # PCIC-Blend (PNWNAmet):
+    if internal_ds == "PNWNAmet":
+        url = f"{THREDDS_BASE}/storage/data/projects/dataportal/data/vic-gen2-forcing/PNWNAmet_{gcm_var}_invert_lat.nc"
+        return url, gcm_var
+    # CMIP6:
+    tech_dir = "BCCAQ2" if internal_tech == "BCCAQv2" else "MBCn"
+    model_dir = model if internal_tech == "BCCAQv2" else f"{model}_10"
+    catalog = f"{THREDDS_CATALOG}/storage/data/climate/downscale/{tech_dir}/CMIP6_{internal_tech}/{model_dir}/catalog.html"
+    session = HTMLSession()
+    r = session.get(catalog)
+    for name in (tt.text for tt in r.html.find("tt")):
+        if (gcm_var in name) and (scenario in name):
+            url = f"{THREDDS_BASE}/storage/data/climate/downscale/{tech_dir}/CMIP6_{internal_tech}/{model_dir}/{name}"
+            return url, gcm_var
+
+    raise LookupError(
+        f"No CMIP6 file for var={gcm_var}, scenario={scenario}, model={model}, tech={internal_tech}."
+    )
+
+
+def in_gcm_for_vars(point, state, selected_vars):
+    """
+    Check GCM mask for multiple variables.
+    selected_vars: list like ["pr","tasmax", ...]
+    """
+    # For each var, map to a representative GCM var and test
+    for clim_var in dict.fromkeys(selected_vars):
+        gcm_var = "tasmax" if clim_var == "tasmean" else clim_var
+        url, var = resolve_gcm_mask_url(state, gcm_var)
+        if not _point_in_mask(url, var, point):
             return False
     return True
 
