@@ -32,7 +32,7 @@ def validate_point(pt):
 
     if not obs_ok and not gcm_ok:
         user_warn(
-            "Point is outside BOTH the chosen observations mask and the GCM mask.",
+            "Point is outside the observations and GCM domain.",
             "warning",
         )
         return False
@@ -43,7 +43,7 @@ def validate_point(pt):
         return False
     if not gcm_ok:
         user_warn(
-            "Point is outside the GCM mask for one or more selected variables.",
+            "Point is outside the GCM domain for one or more selected variables.",
             "warning",
         )
         return False
