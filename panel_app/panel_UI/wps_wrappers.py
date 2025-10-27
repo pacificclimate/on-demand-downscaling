@@ -20,7 +20,8 @@ from .panel_helpers import (
     setup_index_process_params,
 )
 
-from requests_html import HTMLSession
+import requests
+import xml.etree.ElementTree as ET
 from netCDF4 import Dataset
 from time import sleep
 
@@ -65,16 +66,26 @@ def run_single_downscaling(ds_params):
             model_dir = model + "_10"
         model_catalog = cmip6_catalog_url(technique_dir, technique, model_dir)
 
-        session = HTMLSession()
-        r = session.get(model_catalog)
+        r = requests.get(model_catalog)
+        r.raise_for_status()
+
+        root = ET.fromstring(r.content)
+        ns = {
+            "thredds": "http://www.unidata.ucar.edu/namespaces/thredds/InvCatalog/v1.0"
+        }
+
         file = ""
         # Locate the filename in THREDDS based on the parameter values
-        for tt in r.html.find("tt"):
-            file = tt.text
-            if (gcm_var in file) and (scenario in file):
+        for dataset in root.findall(".//thredds:dataset", ns):
+            file = dataset.get("name")
+            if file and (gcm_var in file) and (scenario in file):
                 if (model == "CanESM5") and (canesm5_run not in file):
                     continue
                 break
+        if not file:
+            raise LookupError(
+                f"No file found for var={gcm_var}, scenario={scenario}, model={model}, technique={technique}"
+            )
         gcm_file = cmip6_url(technique_dir, technique, model_dir, file)
 
     obs_file = canada_mosaic_url(obs_var)

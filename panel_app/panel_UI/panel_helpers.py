@@ -3,7 +3,8 @@ from netCDF4 import Dataset, date2num
 from datetime import date
 from datetime import datetime
 from time import sleep
-from requests_html import HTMLSession
+import requests
+import xml.etree.ElementTree as ET
 from ipywidgets import *
 from ipyleaflet import *
 from IPython import display as ipydisplay
@@ -95,10 +96,14 @@ def resolve_gcm_mask_url(state, gcm_var):
     tech_dir = "BCCAQ2" if internal_tech == "BCCAQv2" else "MBCn"
     model_dir = model if internal_tech == "BCCAQv2" else f"{model}_10"
     catalog = cmip6_catalog_url(tech_dir, internal_tech, model_dir)
-    session = HTMLSession()
-    r = session.get(catalog)
-    for name in (tt.text for tt in r.html.find("tt")):
-        if (gcm_var in name) and (scenario in name):
+    r = requests.get(catalog)
+    r.raise_for_status()
+    root = ET.fromstring(r.content)
+    ns = {'thredds': 'http://www.unidata.ucar.edu/namespaces/thredds/InvCatalog/v1.0'}
+
+    for dataset in root.findall('.//thredds:dataset', ns):
+        name = dataset.get('name')
+        if name and (gcm_var in name) and (scenario in name):
             url = cmip6_url(tech_dir, internal_tech, model_dir, name)
             return url, gcm_var
 
@@ -137,9 +142,12 @@ def get_subdomain(lat_min, lat_max, lon_min, lon_max, color, name):
 
 
 def get_models():
-    """Get the list of available CMIP6_BCCAQv2 models."""
-    session = HTMLSession()
-    r = session.get(bccaq2_catalog_url())
+    """Get the list of available CMIP6 models."""
+    r = requests.get(bccaq2_catalog_url())
+    r.raise_for_status()
+    root = ET.fromstring(r.content)
+    ns = {'thredds': 'http://www.unidata.ucar.edu/namespaces/thredds/InvCatalog/v1.0'}
+
     exclude = [
         "AgroClimate/",
         "CMIP6_BCCAQv2",
@@ -150,7 +158,15 @@ def get_models():
         "--",
         "",
     ]
-    models = [tt.text[:-1] for tt in r.html.find("tt") if tt.text not in exclude]
+    models = []
+    for catalog_ref in root.findall('.//thredds:catalogRef', ns):
+        name = catalog_ref.get('{http://www.w3.org/1999/xlink}title')
+        if name and name not in exclude:
+            models.append(name)
+
+    if not models:
+        raise ValueError(f"No models found in THREDDS catalog: {bccaq2_catalog_url()}")
+
     models.sort()
     return models
 

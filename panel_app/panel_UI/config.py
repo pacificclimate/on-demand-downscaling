@@ -28,10 +28,10 @@ def cmip6_url(tech_dir, internal_tech, model_dir, name):
     return f"{THREDDS_BASE}/storage/data/climate/downscale/{tech_dir}/CMIP6_{internal_tech}/{model_dir}/{name}"
 
 def cmip6_catalog_url(tech_dir, internal_tech, model_dir):
-    return f"{THREDDS_CATALOG}/storage/data/climate/downscale/{tech_dir}/CMIP6_{internal_tech}/{model_dir}/catalog.html"
+    return f"{THREDDS_CATALOG}/storage/data/climate/downscale/{tech_dir}/CMIP6_{internal_tech}/{model_dir}/catalog.xml"
 
 def bccaq2_catalog_url():
-    return f"{THREDDS_CATALOG}/storage/data/climate/downscale/BCCAQ2/CMIP6_BCCAQv2/catalog.html"
+    return f"{THREDDS_CATALOG}/storage/data/climate/downscale/BCCAQ2/CMIP6_BCCAQv2/catalog.xml"
 
 def canada_mosaic_url(obs_var):
     return f"{THREDDS_BASE}/storage/data/climate/observations/gridded/Canada_mosaic_30arcsec/{obs_var}_monClim_Canada_mosaic_30arcsec_198101-201012.nc"
