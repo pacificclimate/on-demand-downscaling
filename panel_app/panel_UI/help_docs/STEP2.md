@@ -13,7 +13,6 @@ In this step, you will configure the downscaling of climate model data to high-r
    - **Region name**: Assign a name to your region (for file naming/tracking).
    - **Climate variables**: Choose one or more variables (precipitation, temperature max/min/mean).
    - **Dataset**: Select the input dataset (PCIC-Blend or CanDCS). 
-   **PCIC-Blend** is only available for regions within BC.
      - If you select CanDCS, you’ll need to specify the:
        - Downscaling technique (Univariate or Multivariate)
        - Climate model
@@ -28,7 +27,7 @@ In this step, you will configure the downscaling of climate model data to high-r
 
 ## How it works
 
-- This step uses PCIC’s [Chickadee](https://github.com/pacificclimate/chickadee) service (built on [ClimDown](https://github.com/pacificclimate/climdown)) to downscale medium-resolution climate data to a high-resolution PRISM-adjusted grid for BC.
+- This step uses PCIC’s [Chickadee](https://github.com/pacificclimate/chickadee) service (built on [ClimDown](https://github.com/pacificclimate/climdown)) to downscale medium-resolution climate data to a high-resolution PRISM-adjusted grid.
 - The larger blue (input) region ensures your high-resolution target region is fully covered.
 
 ---
