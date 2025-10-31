@@ -50,8 +50,8 @@ def run_single_downscaling(ds_params):
         gcm_var = clim_var
     obs_var = CLIM_VARS[clim_var]
 
-    if dataset_name == "PNWNAmet":
-        gcm_file = f"{THREDDS_BASE}/storage/data/projects/dataportal/data/vic-gen2-forcing/PNWNAmet_{gcm_var}_invert_lat.nc"
+    if dataset_name == "PCIC-Blend":
+        gcm_file = f"{THREDDS_BASE}/storage/data/climate/observations/gridded/PCIC_Blend/diagonal/{gcm_var}_day_PCIC_Blended_Observations_v1_1950-2012.nc"
     else:
         if technique == "BCCAQv2":
             technique_dir = "BCCAQ2"
@@ -112,9 +112,9 @@ def run_single_downscaling(ds_params):
     obs_lat_range = f"[{obs_lat_indices[0]}:{obs_lat_indices[1]}]"
     obs_lon_range = f"[{obs_lon_indices[0]}:{obs_lon_indices[1]}]"
 
-    # Use full time range of PNWNAmet datasets, but user-specified range for CMIP6
+    # Use full time range of PCIC-Blend datasets, but user-specified range for CMIP6
     print("Setting time ranges")
-    if dataset_name == "PNWNAmet":
+    if dataset_name == "PCIC-Blend":
         gcm_ntime = len(gcm_dataset.variables["time"][:])
         gcm_time_range = f"[0:{gcm_ntime - 1}]"
     else:
@@ -163,7 +163,7 @@ def run_single_downscaling(ds_params):
         if gcm_var == "pr":
             chickadee_params["pr_units"] = "mm/day"
 
-    if dataset_name == "PNWNAmet":
+    if dataset_name == "PCIC-Blend":
         chickadee_params["out_file"] = (
             f"{gcm_var}_{dataset_name}_1945-2012_{region_name}.nc"
         )

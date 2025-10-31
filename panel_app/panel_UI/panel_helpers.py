@@ -78,14 +78,14 @@ def resolve_gcm_mask_url(state, gcm_var):
     Return (url, var) for gcm_var.
     Assumes UI guarantees: if dataset == CMIP6, then scenario is selected.
     """
-    internal_ds = getattr(state, "internal_dataset", None)  # "PNWNAmet" | "CMIP6"
+    internal_ds = getattr(state, "internal_dataset", None)  # "PCIC-Blend" | "CMIP6"
     internal_tech = getattr(state, "internal_technique", None)  # "BCCAQv2" | "MBCn"
     model = (getattr(state, "model", "") or "").strip()
     scenario = (getattr(state, "scenario", "") or "").strip()
 
-    # PCIC-Blend (PNWNAmet):
-    if internal_ds == "PNWNAmet":
-        url = f"{THREDDS_BASE}/storage/data/projects/dataportal/data/vic-gen2-forcing/PNWNAmet_{gcm_var}_invert_lat.nc"
+    # PCIC-Blend:
+    if internal_ds == "PCIC-Blend":
+        url = f"{THREDDS_BASE}/storage/data/climate/observations/gridded/PCIC_Blend/diagonal/{gcm_var}_day_PCIC_Blended_Observations_v1_1950-2012.nc"
         return url, gcm_var
     # CMIP6:
     tech_dir = "BCCAQ2" if internal_tech == "BCCAQv2" else "MBCn"

@@ -43,7 +43,7 @@ class AppState(param.Parameterized):
     }
 
     DATASET_MAP = {
-        "PCIC-Blend": "PNWNAmet",
+        "PCIC-Blend": "PCIC-Blend",
         "CanDCS": "CMIP6",
     }
 

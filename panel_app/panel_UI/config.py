@@ -48,7 +48,7 @@ TECHNIQUE_MAP = {
 }
 
 DATASET_MAP = {
-    "PCIC-Blend": "PNWNAmet",
+    "PCIC-Blend": "PCIC-Blend",
     "CanDCS": "CMIP6",
 }
 
