@@ -41,6 +41,12 @@ def _point_in_mask(nc_url, varname, point, latvar="lat", lonvar="lon", time_inde
         try:
             val = float(cell)
         except Exception:
+            # Intentionally permissive:
+            # If the cell value isn’t numeric *and* isn’t masked, treat it as “has data.”
+            # Rationale: this is extremely rare and usually indicates a corrupted/bad file,
+            # not a valid ocean/land mask. We let it pass so the user isn’t stuck picking
+            # new points forever, and allow downstream (Chickadee) to fail with a
+            # more informative error and email notification.
             return True
 
         if np.isnan(val):
@@ -64,13 +70,11 @@ def _point_in_mask(nc_url, varname, point, latvar="lat", lonvar="lon", time_inde
 
 
 def in_bc(point):
-    url = f"{THREDDS_BASE}/storage/data/climate/PRISM/dataportal/pr_monClim_PRISM_historical_run1_198101-201012.nc"
-    return _point_in_mask(url, "pr", point)
+    return _point_in_mask(PRISM_URL, "pr", point)
 
 
 def in_canada(point):
-    url = f"{THREDDS_BASE}/storage/data/climate/observations/gridded/Canada_mosaic_30arcsec/pr_monClim_Canada_mosaic_30arcsec_198101-201012.nc"
-    return _point_in_mask(url, "pr", point)
+    return _point_in_mask(CANADA_MOSAIC_URL, "pr", point)
 
 
 def resolve_gcm_mask_url(state, gcm_var):
@@ -85,17 +89,17 @@ def resolve_gcm_mask_url(state, gcm_var):
 
     # PCIC-Blend:
     if internal_ds == "PCIC-Blend":
-        url = f"{THREDDS_BASE}/storage/data/climate/observations/gridded/PCIC_Blend/diagonal/{gcm_var}_day_PCIC_Blended_Observations_v1_1950-2012.nc"
+        url = pcic_blend_url(gcm_var)
         return url, gcm_var
     # CMIP6:
     tech_dir = "BCCAQ2" if internal_tech == "BCCAQv2" else "MBCn"
     model_dir = model if internal_tech == "BCCAQv2" else f"{model}_10"
-    catalog = f"{THREDDS_CATALOG}/storage/data/climate/downscale/{tech_dir}/CMIP6_{internal_tech}/{model_dir}/catalog.html"
+    catalog = cmip6_catalog_url(tech_dir, internal_tech, model_dir)
     session = HTMLSession()
     r = session.get(catalog)
     for name in (tt.text for tt in r.html.find("tt")):
         if (gcm_var in name) and (scenario in name):
-            url = f"{THREDDS_BASE}/storage/data/climate/downscale/{tech_dir}/CMIP6_{internal_tech}/{model_dir}/{name}"
+            url = cmip6_url(tech_dir, internal_tech, model_dir, name)
             return url, gcm_var
 
     raise LookupError(
@@ -133,11 +137,9 @@ def get_subdomain(lat_min, lat_max, lon_min, lon_max, color, name):
 
 
 def get_models():
-    """Get the list of available CMIP6 models."""
+    """Get the list of available CMIP6_BCCAQv2 models."""
     session = HTMLSession()
-    r = session.get(
-        f"{THREDDS_CATALOG}/storage/data/climate/downscale/BCCAQ2/CMIP6_BCCAQv2/catalog.html"
-    )
+    r = session.get(bccaq2_catalog_url())
     exclude = [
         "AgroClimate/",
         "CMIP6_BCCAQv2",

@@ -17,6 +17,25 @@ THREDDS_CATALOG = f"{BIRDHOUSE_HOST_URL}/twitcher/ows/proxy/thredds/catalog/data
 chickadee = WPSClient(CHICKADEE_URL, progress=True)
 finch = WPSClient(FINCH_URL, progress=True)
 
+
+PRISM_URL = f"{THREDDS_BASE}/storage/data/climate/PRISM/dataportal/pr_monClim_PRISM_historical_run1_198101-201012.nc"
+CANADA_MOSAIC_URL = f"{THREDDS_BASE}/storage/data/climate/observations/gridded/Canada_mosaic_30arcsec/pr_monClim_Canada_mosaic_30arcsec_198101-201012.nc"
+
+def pcic_blend_url(gcm_var):
+    return f"{THREDDS_BASE}/storage/data/climate/observations/gridded/PCIC_Blend/diagonal/{gcm_var}_day_PCIC_Blended_Observations_v1_1950-2012.nc"
+
+def cmip6_url(tech_dir, internal_tech, model_dir, name):
+    return f"{THREDDS_BASE}/storage/data/climate/downscale/{tech_dir}/CMIP6_{internal_tech}/{model_dir}/{name}"
+
+def cmip6_catalog_url(tech_dir, internal_tech, model_dir):
+    return f"{THREDDS_CATALOG}/storage/data/climate/downscale/{tech_dir}/CMIP6_{internal_tech}/{model_dir}/catalog.html"
+
+def bccaq2_catalog_url():
+    return f"{THREDDS_CATALOG}/storage/data/climate/downscale/BCCAQ2/CMIP6_BCCAQv2/catalog.html"
+
+def canada_mosaic_url(obs_var):
+    return f"{THREDDS_BASE}/storage/data/climate/observations/gridded/Canada_mosaic_30arcsec/{obs_var}_monClim_Canada_mosaic_30arcsec_198101-201012.nc"
+
 SHOW_OBS_DOMAIN = True  # Temp for RCI to compare Canada vs BC PRISM
 label_map = {
     "center_point": "Location on the map",

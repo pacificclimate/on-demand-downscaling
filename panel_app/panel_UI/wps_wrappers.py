@@ -6,6 +6,10 @@ from .config import (
     THREDDS_CATALOG,
     DEFAULT_START_DATE,
     DEFAULT_END_DATE,
+    pcic_blend_url,
+    cmip6_url,
+    cmip6_catalog_url,
+    canada_mosaic_url,
 )
 from .panel_helpers import (
     get_index_range,
@@ -51,7 +55,7 @@ def run_single_downscaling(ds_params):
     obs_var = CLIM_VARS[clim_var]
 
     if dataset_name == "PCIC-Blend":
-        gcm_file = f"{THREDDS_BASE}/storage/data/climate/observations/gridded/PCIC_Blend/diagonal/{gcm_var}_day_PCIC_Blended_Observations_v1_1950-2012.nc"
+        gcm_file = pcic_blend_url(gcm_var)
     else:
         if technique == "BCCAQv2":
             technique_dir = "BCCAQ2"
@@ -59,7 +63,7 @@ def run_single_downscaling(ds_params):
         else:
             technique_dir = "MBCn"
             model_dir = model + "_10"
-        model_catalog = f"{THREDDS_CATALOG}/storage/data/climate/downscale/{technique_dir}/CMIP6_{technique}/{model_dir}/catalog.html"
+        model_catalog = cmip6_catalog_url(technique_dir, technique, model_dir)
 
         session = HTMLSession()
         r = session.get(model_catalog)
@@ -71,9 +75,9 @@ def run_single_downscaling(ds_params):
                 if (model == "CanESM5") and (canesm5_run not in file):
                     continue
                 break
-        gcm_file = f"{THREDDS_BASE}/storage/data/climate/downscale/{technique_dir}/CMIP6_{technique}/{model_dir}/{file}"
+        gcm_file = cmip6_url(technique_dir, technique, model_dir, file)
 
-    obs_file = f"{THREDDS_BASE}/storage/data/climate/observations/gridded/Canada_mosaic_30arcsec/{obs_var}_monClim_Canada_mosaic_30arcsec_198101-201012.nc"
+    obs_file = canada_mosaic_url(obs_var)
     print(f"Using GCM file: {gcm_file}")
     print(f"Using Obs file: {obs_file}")
     gcm_dataset = Dataset(gcm_file)
@@ -158,7 +162,7 @@ def run_single_downscaling(ds_params):
         "end_date": DEFAULT_END_DATE,
     }
 
-    if gcm_var in ["pr", "tg"]:
+    if gcm_var in ["pr", "tasmean"]:
         chickadee_params["units_bool"] = False
         if gcm_var == "pr":
             chickadee_params["pr_units"] = "mm/day"
@@ -233,7 +237,6 @@ def run_single_index(ix_params, downscaling_outputs):
             return f"{index_name}: ❌ No input file"
 
         params = setup_index_process_params(func_name, resolution, threshold)
-        print("Calling finch.dtr with URLs (tasmin, tasmax):", opendap_urls)
         process_result = process(*opendap_urls, **params)
         output_url = process_result.get()[0]
 
