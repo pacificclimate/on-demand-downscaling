@@ -1,0 +1,41 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  panel-app:
+    build:
+      context: ..
+      dockerfile: panel_app/Dockerfile
+    env_file:
+      - .env
+
+    ports:
+      - "5006:5006"
+    depends_on:
+      - redis
+    command: >
+      poetry run panel serve panel_app/panel_app.py --address 0.0.0.0 --port 5006
+
+  worker:
+    build:
+      context: ..
+      dockerfile: panel_app/Dockerfile
+    environment:
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - redis
+    command: >
+      poetry run python -m panel_app.panel_UI.worker
+  
+  rq-exporter:
+    image: mdawar/rq-exporter:latest
+    ports:
+      - "9726:9726"
+    environment:
+      RQ_REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - redis
+    restart: unless-stopped

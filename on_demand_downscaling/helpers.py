@@ -64,8 +64,16 @@ def in_bc(point):
 def get_subdomain(lat_min, lat_max, lon_min, lon_max, color, name):
     """Create a rectangle with the vertices at the lat/lon coordinates
     of the chosen subdomain. Blue is the GCM, and red is the PRISM observations."""
-    coords = [(lat_min, lon_min), (lat_max, lon_max)]
-    return Rectangle(bounds=coords, color=color, name=name, draggable=True)
+    bounds = [(lat_min, lon_min), (lat_max, lon_max)]
+    return Rectangle(
+        bounds=bounds,
+        color=color,
+        fill_color=color,
+        fill_opacity=0.3,
+        stroke=True,
+        draggable=False,
+        name=name,
+    )
 
 
 def get_models():
