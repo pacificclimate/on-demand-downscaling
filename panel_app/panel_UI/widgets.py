@@ -3,6 +3,7 @@ from ipyleaflet import Map, LayerGroup, basemap_to_tiles, basemaps, Marker
 import panel as pn
 from inspect import getfullargspec
 import param
+from .config import SHOW_OBS_DOMAIN
 
 # ========== STATE ==========
 
@@ -34,6 +35,7 @@ class AppState(param.Parameterized):
     email = param.String(default="")
     current_step = param.Integer(default=0)
     authenticated = param.Boolean(default=False)
+    obs_domain = param.String(default="Canada Mosaic")
 
     TECHNIQUE_MAP = {
         "Univariate": "BCCAQv2",
@@ -41,7 +43,7 @@ class AppState(param.Parameterized):
     }
 
     DATASET_MAP = {
-        "PCIC-Blend": "PNWNAmet",
+        "PCIC-Blend": "PCIC-Blend",
         "CanDCS": "CMIP6",
     }
 
@@ -386,6 +388,25 @@ def build_downscaling_controls(
     clim_vars = build_vbox(
         [clim_vars_label, pr_toggle, tasmax_toggle, tasmin_toggle, tasmean_toggle],
     )
+    obs_domain = None
+    if SHOW_OBS_DOMAIN:
+        obs_domain = build_radio_buttons(
+            options=["Canada Mosaic", "BC PRISM"],
+            description="Obs domain:",
+            value=state.obs_domain,  # default in AppState
+            state=state,
+            attr="obs_domain",
+            layout=widgets.Layout(width="100%"),
+        )
+        legend_and_toggle = build_vbox([legend_html(), obs_domain])
+        legend_row = build_hbox(
+            [clim_vars, legend_and_toggle], layout=widgets.Layout(width="75%")
+        )
+    else:
+        legend_row = build_hbox(
+            [clim_vars, legend_html()], layout=widgets.Layout(width="75%")
+        )
+
     dataset = build_radio_buttons(
         options=["PCIC-Blend", "CanDCS"],
         description="Dataset:",
@@ -439,7 +460,7 @@ def build_downscaling_controls(
             center,
             region,
             dpad,
-            build_hbox([clim_vars, legend_html()], layout=widgets.Layout(width="75%")),
+            legend_row,
             build_hbox([dataset, technique], layout=widgets.Layout(width="75%")),
             model,
             canesm5_run,
@@ -456,6 +477,7 @@ def build_downscaling_controls(
         tasmin_toggle=tasmin_toggle,
         tasmean_toggle=tasmean_toggle,
         clim_vars=clim_vars,
+        **({"obs_domain": obs_domain} if obs_domain is not None else {}),
         dataset=dataset,
         technique=technique,
         canesm5_run=canesm5_run,

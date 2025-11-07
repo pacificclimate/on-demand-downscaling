@@ -6,7 +6,7 @@ To use this tool, you must sign in or register for an account.
 
 This application allows you to:
 
-- **Perform statistical downscaling of climate model data (e.g., CanDCS)**, from medium-resolution (~10 km) grids to high-resolution (~800 m) grids for specific regions in British Columbia.
+- **Perform statistical downscaling of climate model data (e.g., CanDCS)**, from medium-resolution (~10 km) grids to high-resolution (~800 m) grids.
 - **Compute climate indices** including extremes, durations, and threshold-based metrics for precipitation and temperature on the high-resolution data, using flexible user-selected regions and scenarios.
 
 The workflow takes advantage of applications used in the DACCS project called "birds", which convert packages into web services:

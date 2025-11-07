@@ -6,6 +6,10 @@ from .config import (
     THREDDS_CATALOG,
     DEFAULT_START_DATE,
     DEFAULT_END_DATE,
+    pcic_blend_url,
+    cmip6_url,
+    cmip6_catalog_url,
+    canada_mosaic_url,
 )
 from .panel_helpers import (
     get_index_range,
@@ -16,7 +20,8 @@ from .panel_helpers import (
     setup_index_process_params,
 )
 
-from requests_html import HTMLSession
+import requests
+import xml.etree.ElementTree as ET
 from netCDF4 import Dataset
 from time import sleep
 
@@ -50,8 +55,8 @@ def run_single_downscaling(ds_params):
         gcm_var = clim_var
     obs_var = CLIM_VARS[clim_var]
 
-    if dataset_name == "PNWNAmet":
-        gcm_file = f"{THREDDS_BASE}/storage/data/projects/dataportal/data/vic-gen2-forcing/PNWNAmet_{gcm_var}_invert_lat.nc"
+    if dataset_name == "PCIC-Blend":
+        gcm_file = pcic_blend_url(gcm_var)
     else:
         if technique == "BCCAQv2":
             technique_dir = "BCCAQ2"
@@ -59,21 +64,31 @@ def run_single_downscaling(ds_params):
         else:
             technique_dir = "MBCn"
             model_dir = model + "_10"
-        model_catalog = f"{THREDDS_CATALOG}/storage/data/climate/downscale/{technique_dir}/CMIP6_{technique}/{model_dir}/catalog.html"
+        model_catalog = cmip6_catalog_url(technique_dir, technique, model_dir)
 
-        session = HTMLSession()
-        r = session.get(model_catalog)
+        r = requests.get(model_catalog)
+        r.raise_for_status()
+
+        root = ET.fromstring(r.content)
+        ns = {
+            "thredds": "http://www.unidata.ucar.edu/namespaces/thredds/InvCatalog/v1.0"
+        }
+
         file = ""
         # Locate the filename in THREDDS based on the parameter values
-        for tt in r.html.find("tt"):
-            file = tt.text
-            if (gcm_var in file) and (scenario in file):
+        for dataset in root.findall(".//thredds:dataset", ns):
+            file = dataset.get("name")
+            if file and (gcm_var in file) and (scenario in file):
                 if (model == "CanESM5") and (canesm5_run not in file):
                     continue
                 break
-        gcm_file = f"{THREDDS_BASE}/storage/data/climate/downscale/{technique_dir}/CMIP6_{technique}/{model_dir}/{file}"
+        if not file:
+            raise LookupError(
+                f"No file found for var={gcm_var}, scenario={scenario}, model={model}, technique={technique}"
+            )
+        gcm_file = cmip6_url(technique_dir, technique, model_dir, file)
 
-    obs_file = f"{THREDDS_BASE}/storage/data/climate/PRISM/dataportal/{obs_var}_monClim_PRISM_historical_run1_198101-201012.nc"
+    obs_file = canada_mosaic_url(obs_var)
     print(f"Using GCM file: {gcm_file}")
     print(f"Using Obs file: {obs_file}")
     gcm_dataset = Dataset(gcm_file)
@@ -112,9 +127,9 @@ def run_single_downscaling(ds_params):
     obs_lat_range = f"[{obs_lat_indices[0]}:{obs_lat_indices[1]}]"
     obs_lon_range = f"[{obs_lon_indices[0]}:{obs_lon_indices[1]}]"
 
-    # Use full time range of PNWNAmet datasets, but user-specified range for CMIP6
+    # Use full time range of PCIC-Blend datasets, but user-specified range for CMIP6
     print("Setting time ranges")
-    if dataset_name == "PNWNAmet":
+    if dataset_name == "PCIC-Blend":
         gcm_ntime = len(gcm_dataset.variables["time"][:])
         gcm_time_range = f"[0:{gcm_ntime - 1}]"
     else:
@@ -158,12 +173,12 @@ def run_single_downscaling(ds_params):
         "end_date": DEFAULT_END_DATE,
     }
 
-    if gcm_var in ["pr", "tg"]:
+    if gcm_var in ["pr", "tasmean"]:
         chickadee_params["units_bool"] = False
         if gcm_var == "pr":
             chickadee_params["pr_units"] = "mm/day"
 
-    if dataset_name == "PNWNAmet":
+    if dataset_name == "PCIC-Blend":
         chickadee_params["out_file"] = (
             f"{gcm_var}_{dataset_name}_1945-2012_{region_name}.nc"
         )
@@ -233,7 +248,6 @@ def run_single_index(ix_params, downscaling_outputs):
             return f"{index_name}: ❌ No input file"
 
         params = setup_index_process_params(func_name, resolution, threshold)
-        print("Calling finch.dtr with URLs (tasmin, tasmax):", opendap_urls)
         process_result = process(*opendap_urls, **params)
         output_url = process_result.get()[0]
 
