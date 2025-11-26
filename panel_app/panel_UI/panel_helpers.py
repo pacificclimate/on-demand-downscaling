@@ -99,10 +99,10 @@ def resolve_gcm_mask_url(state, gcm_var):
     r = requests.get(catalog)
     r.raise_for_status()
     root = ET.fromstring(r.content)
-    ns = {'thredds': 'http://www.unidata.ucar.edu/namespaces/thredds/InvCatalog/v1.0'}
+    ns = {"thredds": "http://www.unidata.ucar.edu/namespaces/thredds/InvCatalog/v1.0"}
 
-    for dataset in root.findall('.//thredds:dataset', ns):
-        name = dataset.get('name')
+    for dataset in root.findall(".//thredds:dataset", ns):
+        name = dataset.get("name")
         if name and (gcm_var in name) and (scenario in name):
             url = cmip6_url(tech_dir, internal_tech, model_dir, name)
             return url, gcm_var
@@ -146,21 +146,21 @@ def get_models():
     r = requests.get(bccaq2_catalog_url())
     r.raise_for_status()
     root = ET.fromstring(r.content)
-    ns = {'thredds': 'http://www.unidata.ucar.edu/namespaces/thredds/InvCatalog/v1.0'}
+    ns = {"thredds": "http://www.unidata.ucar.edu/namespaces/thredds/InvCatalog/v1.0"}
 
     exclude = [
-        "AgroClimate/",
+        "AgroClimate",
         "CMIP6_BCCAQv2",
-        "CWEC2020_Factors/",
-        "Degree_Climatologies/",
-        "Ensemble_Averages/",
-        "nobackup/",
+        "CWEC2020_Factors",
+        "Degree_Climatologies",
+        "Ensemble_Averages",
+        "nobackup",
         "--",
         "",
     ]
     models = []
-    for catalog_ref in root.findall('.//thredds:catalogRef', ns):
-        name = catalog_ref.get('{http://www.w3.org/1999/xlink}title')
+    for catalog_ref in root.findall(".//thredds:catalogRef", ns):
+        name = catalog_ref.get("{http://www.w3.org/1999/xlink}title")
         if name and name not in exclude:
             models.append(name)
 
