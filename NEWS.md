@@ -1,5 +1,12 @@
 # News / Release Notes
 
+## 2.0.1
+
+_Release Date: 2025-Nov-26_
+
+- Bug Fix:[Remove trailing slash from excluded models](https://github.com/pacificclimate/on-demand-downscaling/pull/15)
+
+
 ## 2.0.0
 
 _Release Date: 2025-Nov-07_
