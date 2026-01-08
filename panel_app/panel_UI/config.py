@@ -9,7 +9,7 @@ load_dotenv()
 MAGPIE_URL = os.getenv("MAGPIE_URL")
 BIRDHOUSE_HOST_URL = os.getenv("BIRDHOUSE_HOST_URL")
 
-CHICKADEE_URL = f"{BIRDHOUSE_HOST_URL.replace('https','http')}:8102"
+CHICKADEE_URL = f"{BIRDHOUSE_HOST_URL}/twitcher/ows/proxy/chickadee/wps"
 FINCH_URL = f"{BIRDHOUSE_HOST_URL}/twitcher/ows/proxy/finch/wps"
 THREDDS_BASE = f"{BIRDHOUSE_HOST_URL}/twitcher/ows/proxy/thredds/dodsC/datasets"
 THREDDS_CATALOG = f"{BIRDHOUSE_HOST_URL}/twitcher/ows/proxy/thredds/catalog/datasets"
