@@ -134,6 +134,60 @@ def build_text(
     return text
 
 
+def build_scenario_buttons(
+    state,
+    attr="scenario",
+    description="Scenario:",
+    value=None,
+    layout=None,
+    disabled=False,
+    **kwargs,
+):
+    if layout is None:
+        layout = widgets.Layout(width="75%")
+
+    rb = widgets.RadioButtons(
+        options=list(BASE_SCENARIOS),
+        description=description,
+        value=value,
+        layout=layout,
+        disabled=disabled,
+        **kwargs,
+    )
+
+    def _update(change):
+        setattr(state, attr, change["new"])
+
+    rb.observe(_update, names="value")
+
+    def _refresh(*_):
+        options = list(BASE_SCENARIOS)
+        if state.internal_dataset == "CMIP6" and state.internal_technique == "MBCn":
+            # Insert SSP3-7.0 before SSP5-8.5 (ssp585) so ordering is correct
+            insert_at = next(
+                (i for i, (_, v) in enumerate(options) if v == "ssp585"),
+                len(options),
+            )
+            options.insert(insert_at, SSP370)
+
+        rb.options = options
+        desired = getattr(state, attr)
+        valid = {v for _, v in options}
+
+        if desired in valid:
+            rb.value = desired
+        else:
+            rb.value = "ssp126" if "ssp126" in valid else next(iter(valid))
+            setattr(state, attr, rb.value)
+
+    state.param.watch(lambda e: _refresh(), attr)
+    state.param.watch(lambda e: _refresh(), "dataset")
+    state.param.watch(lambda e: _refresh(), "technique")
+
+    _refresh()
+    return rb
+
+
 def build_radio_buttons(
     options,
     state,
@@ -437,8 +491,7 @@ def build_downscaling_controls(
         state=state,
         attr="model",
     )
-    scenario = build_radio_buttons(
-        options=SCENARIOS,
+    scenario = build_scenario_buttons(
         description="Scenario:",
         disabled=True,
         state=state,
