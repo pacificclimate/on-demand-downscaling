@@ -3,7 +3,7 @@ from ipyleaflet import Map, LayerGroup, basemap_to_tiles, basemaps, Marker
 import panel as pn
 from inspect import getfullargspec
 import param
-from .config import SHOW_OBS_DOMAIN
+from .config import BASE_SCENARIOS, SHOW_OBS_DOMAIN, SSP370
 
 # ========== STATE ==========
 
@@ -394,7 +394,7 @@ def legend_html():
 
 
 def build_downscaling_controls(
-    get_models, CANE5_RUNS, SCENARIOS, PERIODS, state, description_style=None
+    get_models, CANE5_RUNS, PERIODS, state, description_style=None
 ):
     if description_style is None:
         description_style = {"description_width": "initial"}

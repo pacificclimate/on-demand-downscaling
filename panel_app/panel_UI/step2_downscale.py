@@ -115,7 +115,7 @@ def get_controls():
     doc = pn.state.curdoc
     if not hasattr(doc, "controls"):
         controls = build_downscaling_controls(
-            get_models, CANE5_RUNS, SCENARIOS, PERIODS, get_state()
+            get_models, CANE5_RUNS, PERIODS, get_state()
         )
         doc.controls = controls
     return doc.controls
