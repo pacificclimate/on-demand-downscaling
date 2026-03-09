@@ -64,7 +64,16 @@ CLIM_VARS = {
 }
 
 CANE5_RUNS = [f"r{i}i1p2f1" for i in range(1, 11)]
-SCENARIOS = [("SSP1-2.6", "ssp126"), ("SSP2-4.5", "ssp245"), ("SSP5-8.5", "ssp585")]
+
+BASE_SCENARIOS = [
+    ("SSP1-2.6", "ssp126"),
+    ("SSP2-4.5", "ssp245"),
+    ("SSP5-8.5", "ssp585"),
+]
+
+SSP370 = ("SSP3-7.0", "ssp370")
+
+
 PERIODS = ["1950-2010", "1981-2100", "1950-2100"]
 
 TECHNIQUE_MAP = {
