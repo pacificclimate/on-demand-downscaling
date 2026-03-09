@@ -310,6 +310,30 @@ def step2_region_view():
     continue_btn.on_click(on_next)
     back_btn.on_click(on_prev)
 
+    def get_available_canesm5_runs():
+        is_cmip6 = state.internal_dataset == "CMIP6"
+        is_canesm5 = controls["model"].value == "CanESM5"
+        is_multivar_ssp370 = (
+            state.internal_technique == "MBCn" and controls["scenario"].value == "ssp370"
+        )
+        if is_cmip6 and is_canesm5 and is_multivar_ssp370:
+            return CANE5_RUNS_SSP370_MULTIVAR
+        return CANE5_RUNS
+
+    def sync_canesm5_run_control():
+        is_canesm5 = controls["model"].value == "CanESM5"
+        available_runs = get_available_canesm5_runs()
+        controls["canesm5_run"].options = [""] + available_runs
+        controls["canesm5_run"].disabled = not is_canesm5
+
+        if not is_canesm5:
+            controls["canesm5_run"].value = ""
+            return
+
+        selected = controls["canesm5_run"].value
+        if selected not in controls["canesm5_run"].options:
+            controls["canesm5_run"].value = available_runs[0] if available_runs else ""
+
     def handle_dataset_change(event):
         is_cmip6 = state.internal_dataset == "CMIP6"
         user_warn(f"Dataset changed to: {controls['dataset'].value}")
@@ -324,22 +348,23 @@ def step2_region_view():
             state.scenario = "ssp126"
             controls["period"].value = "1950-2010"
             state.period = "1950-2010"
-            controls["canesm5_run"].value = "r1i1p2f1"
-            state.canesm5_run = "r1i1p2f1"
+            sync_canesm5_run_control()
+            state.canesm5_run = controls["canesm5_run"].value
         else:
             for key in ["model", "canesm5_run", "technique", "scenario", "period"]:
                 controls[key].disabled = True
 
     def handle_model_change(event):
-        is_canesm5 = controls["model"].value == "CanESM5"
-        controls["canesm5_run"].disabled = not is_canesm5
-        if is_canesm5:
-            controls["canesm5_run"].value = "r1i1p2f1"
-        else:
-            controls["canesm5_run"].value = ""
+        sync_canesm5_run_control()
+
+    def handle_technique_or_scenario_change(event):
+        sync_canesm5_run_control()
 
     controls["dataset"].observe(handle_dataset_change, "value")
     controls["model"].observe(handle_model_change, "value")
+    controls["technique"].observe(handle_technique_or_scenario_change, "value")
+    controls["scenario"].observe(handle_technique_or_scenario_change, "value")
+    sync_canesm5_run_control()
 
     return pn.Column(
         pn.pane.Markdown("# Step 2: Select Region and Downscaling Parameters"),
