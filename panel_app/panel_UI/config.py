@@ -64,6 +64,7 @@ CLIM_VARS = {
 }
 
 CANE5_RUNS = [f"r{i}i1p2f1" for i in range(1, 11)]
+CANE5_RUNS_SSP370_MULTIVAR = ["r1i1p2f1"]
 
 BASE_SCENARIOS = [
     ("SSP1-2.6", "ssp126"),
