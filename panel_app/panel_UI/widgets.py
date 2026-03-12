@@ -872,7 +872,7 @@ def build_index_checkboxes(
             value=False,
             style=description_style,
             key_prefix=key_prefix,
-            layout=widgets.Layout(width="240px", min_width="240px"),
+            layout=widgets.Layout(width="256px", min_width="256px"),
         )
         dropdown = build_index_dropdown(
             options=options, state=state, value=options[0], key=key
@@ -959,8 +959,7 @@ def build_index_checkboxes(
                 "selected": checkbox.value,
                 "resolution": options[0] if options else None,
                 "sliders": {
-                    slider._threshold_param_key: slider.value
-                    for slider in row_sliders
+                    slider._threshold_param_key: slider.value for slider in row_sliders
                 },
             }
 
