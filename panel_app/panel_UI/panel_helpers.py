@@ -241,13 +241,16 @@ def setup_index_process_params(identifier, resolution=None, threshold=None):
     num_for_prefix = None
     if "param_overrides" in config:
         params.update(config["param_overrides"])
-        num_for_prefix = None
-    elif threshold is not None:
+    if threshold is not None:
         if "threshold_parser" in config:
             parsed = config["threshold_parser"](threshold)
         else:
             parsed = threshold
-        params[param_key] = parsed
+
+        if isinstance(parsed, dict):
+            params.update(parsed)
+        else:
+            params[param_key] = parsed
 
         if "number_parser" in config:
             num_for_prefix = config["number_parser"](threshold)
@@ -259,9 +262,11 @@ def setup_index_process_params(identifier, resolution=None, threshold=None):
     # --- Output Name ---
     if config.get("output_prefix"):
         try:
-            prefix = config["output_prefix"].format(
-                **{param_key: params[param_key]}, num=num_for_prefix
-            )
+            format_vars = dict(params)
+            format_vars.update({"num": num_for_prefix})
+            if param_key in params:
+                format_vars[param_key] = params[param_key]
+            prefix = config["output_prefix"].format(**format_vars)
         except Exception:
             prefix = identifier.replace("_", "")
     else:

@@ -127,43 +127,69 @@ MAX_SELECTED_INDICES = 8
 # --- Threshold Slider Defaults ---
 N_DAY_PRECIP_OPTIONS = ["1 day"] + [f"{i} days" for i in range(2, 11)]
 WETDAY_THRESHOLD_OPTIONS = [f"{i} mm/day" for i in range(1, 31)]
-SUMMER_DAY_THRESHOLD_OPTIONS = [f"{i} degC" for i in range(20, 31)]
-TROPICAL_NIGHTS_THRESHOLD_OPTIONS = [f"{i} degC" for i in range(10, 31)]
+PRECIP_PERCENTILE_OPTIONS = [f"{i} pct" for i in range(0, 100)]
+PRECIP_THRESHOLD_OPTIONS = [f"{i} mm/day" for i in range(1, 31)]
+TX_DAYS_ABOVE_THRESHOLD_OPTIONS = [f"{i} degC" for i in range(20, 36)]
+TN_DAYS_ABOVE_THRESHOLD_OPTIONS = [f"{i} degC" for i in range(10, 31)]
+TN_DAYS_BELOW_THRESHOLD_OPTIONS = [f"{i} degC" for i in range(-30, 1)]
+HDD_THRESHOLD_OPTIONS = [f"{i} degC" for i in range(10, 21)]
+CDD_THRESHOLD_OPTIONS = [f"{i} degC" for i in range(10, 21)]
+COLD_SPELL_THRESHOLD_OPTIONS = [f"{i} degC" for i in range(-20, -9)]
+COLD_SPELL_N_DAY_OPTIONS = ["2 days"] + [f"{i} days" for i in range(3, 11)]
+CWD_THRESHOLD_OPTIONS = [f"{i} mm/day" for i in range(1, 31)]
+CDD_DRY_THRESHOLD_OPTIONS = [f"{i} mm/day" for i in range(1, 4)]
+HEAT_WAVE_TN_THRESHOLD_OPTIONS = [f"{i} degC" for i in range(10, 31)]
+HEAT_WAVE_TX_THRESHOLD_OPTIONS = [f"{i} degC" for i in range(20, 36)]
+HEAT_WAVE_N_DAY_OPTIONS = ["2 days"] + [f"{i} days" for i in range(3, 11)]
 # --- Time Window Defaults ---
 DEFAULT_START_DATE = date(1981, 1, 1)
 DEFAULT_END_DATE = date(2010, 12, 31)
 
 INDEX_FUNCTIONS_STRUCTURE = {
-    "pr": [
-        ("Max N-day Precip Amount", "max_n_day_precipitation_amount"),
-        ("Simple Precip Intensity Index", "sdii"),
-        ("Days with Precip over N-mm", "wetdays"),
-        ("Maximum Length of Dry Spell", "cdd"),
-        ("Maximum Length of Wet Spell", "cwd"),
-        ("Total Wet-Day Precip", "wet_prcptot"),
-    ],
     "tasmax": [
-        ("Summer Days", "tx_days_above"),
+        ("Mean", "tx_mean"),
         ("Ice Days", "ice_days"),
         ("Hottest Day", "tx_max"),
         ("Coldest Day", "tx_min"),
+        ("Days Above a Specified TX", "tx_days_above"),
     ],
     "tasmin": [
-        ("Frost Days", "frost_days"),
-        ("Tropical Nights", "tropical_nights"),
+        ("Mean", "tn_mean"),
         ("Hottest Night", "tn_max"),
         ("Coldest Night", "tn_min"),
+        ("Frost Days", "frost_days"),
+        ("Days Above a Specified TN", "tn_days_above"),
+        ("Days Below a Specified TN", "tn_days_below"),
     ],
     "tasmean": [
+        ("Mean", "tg_mean"),
         ("Growing Season Length", "growing_season_length"),
-        ("Cooling Degree Days", "cooling_degree_days"),
-        ("Freezing Degree Days", "freezing_degree_days"),
         ("Growing Degree Days", "growing_degree_days"),
+        ("Freezing Degree Days", "freezing_degree_days"),
         ("Heating Degree Days", "heating_degree_days"),
+        ("Cooling Degree Days", "cooling_degree_days"),
+        ("Cold Spell Days", "cold_spell_days"),
+    ],
+    "pr": [
+        ("Max N-day Precip Amount", "max_n_day_precipitation_amount"),
+        ("Total Precipitation", "prcptot"),
+        ("Average Wet-Day Precipitation (SDII)", "sdii"),
+        ("Days with Precip over N-mm", "wetdays"),
+        (
+            "Days Over Precip Percentile Threshold",
+            "days_over_precip_thresh",
+        ),
+        ("Maximum Length of Wet Spell", "cwd"),
+        ("Maximum Length of Dry Spell", "cdd"),
     ],
     "multivar": [
-        ("Daily Temperature Range", "dtr"),
-        ("Freeze-Thaw Days", "freezethaw_spell_frequency"),
+        ("Extreme Temperature Range", "etr"),
+        ("Freeze-Thaw Days", "dlyfrzthw"),
+        ("Snowfall", "prsn"),
+        ("Rainfall", "prlp"),
+        ("Heat Wave Days", "heat_wave_index"),
+        ("Heat Wave Number", "heat_wave_frequency"),
+        ("Heat Wave Maximum Length", "heat_wave_max_length"),
     ],
 }
 
@@ -180,12 +206,46 @@ INDEX_PROCESS_CONFIG = {
         "number_parser": lambda s: s.split(" ")[0],  # Filename: "10"
     },
     "tx_days_above": {
-        "output_prefix": "summer_days_{thresh}C",
+        "output_prefix": "tx_days_above_{thresh}C",
         "param_key": "thresh",
         "threshold_parser": lambda s: s,
     },
-    "tropical_nights": {
-        "output_prefix": "tropical_nights_{thresh}C",
+    "tn_days_above": {
+        "output_prefix": "tn_days_above_{thresh}C",
+        "param_key": "thresh",
+        "threshold_parser": lambda s: s,
+    },
+    "tn_days_below": {
+        "output_prefix": "tn_days_below_{thresh}C",
+        "param_key": "thresh",
+        "threshold_parser": lambda s: s,
+    },
+    "cdd": {
+        "output_prefix": "cdd_{num}mmday",
+        "param_key": "thresh",
+        "threshold_parser": lambda s: s,
+        "number_parser": lambda s: s.split(" ")[0],
+    },
+    "cwd": {
+        "output_prefix": "cwd_{num}mmday",
+        "param_key": "thresh",
+        "threshold_parser": lambda s: s,
+        "number_parser": lambda s: s.split(" ")[0],
+    },
+    "sdii": {
+        "output_prefix": "sdii",
+        "param_key": "thresh",
+        "param_overrides": {"thresh": "1 mm/day"},
+    },
+    "days_over_precip_thresh": {
+        "output_prefix": "days_over_precip_thresh",
+        "param_key": "thresh",
+        "threshold_parser": lambda t: {
+            "thresh": t.get("thresh", "1 mm/day"),
+        },
+    },
+    "cooling_degree_days": {
+        "output_prefix": "cdd_{thresh}C",
         "param_key": "thresh",
         "threshold_parser": lambda s: s,
     },
@@ -195,9 +255,47 @@ INDEX_PROCESS_CONFIG = {
         "param_overrides": {"thresh": "18 degC"},
     },
     "heating_degree_days": {
-        "output_prefix": "hdd",
+        "output_prefix": "hdd_{thresh}C",
         "param_key": "thresh",
-        "param_overrides": {"thresh": "5 degC"},
+        "threshold_parser": lambda s: s,
+    },
+    "cold_spell_days": {
+        "output_prefix": "cold_spell_{thresh}_{window}",
+        "threshold_parser": lambda t: {
+            "thresh": t.get("thresh"),
+            "window": int(t.get("window", "2 days").split(" ")[0]),
+        },
+    },
+    "prsn": {
+        "output_prefix": "snowfall",
+        "param_overrides": {"method": "auer"},
+    },
+    "prlp": {
+        "output_prefix": "rainfall",
+        "param_overrides": {"method": "auer"},
+    },
+    "heat_wave_frequency": {
+        "output_prefix": "heat_wave_frequency_{thresh_tasmin}_{thresh_tasmax}_{window}d",
+        "threshold_parser": lambda t: {
+            "thresh_tasmin": t.get("tn_thresh"),
+            "thresh_tasmax": t.get("tx_thresh"),
+            "window": int(t.get("window", "2 days").split(" ")[0]),
+        },
+    },
+    "heat_wave_index": {
+        "output_prefix": "heat_wave_days_{thresh}_{window}d",
+        "threshold_parser": lambda t: {
+            "thresh": t.get("tx_thresh"),
+            "window": int(t.get("window", "2 days").split(" ")[0]),
+        },
+    },
+    "heat_wave_max_length": {
+        "output_prefix": "heat_wave_max_length_{thresh_tasmin}_{thresh_tasmax}_{window}d",
+        "threshold_parser": lambda t: {
+            "thresh_tasmin": t.get("tn_thresh"),
+            "thresh_tasmax": t.get("tx_thresh"),
+            "window": int(t.get("window", "2 days").split(" ")[0]),
+        },
     },
     "*": {
         "param_key": "thresh",
@@ -224,8 +322,20 @@ PARAMS_TO_WATCH = [
     "output_intent",
     "rxnday",
     "rnnmm",
-    "summer_days",
-    "tropical_nights",
+    "precip_percentile",
+    "precip_thresh",
+    "tx_days_above_thresh",
+    "tn_days_above_thresh",
+    "tn_days_below_thresh",
+    "hdd_thresh",
+    "cdd_thresh",
+    "cold_spell_thresh",
+    "cold_spell_window",
+    "cwd_thresh",
+    "cdd_dry_thresh",
+    "heat_wave_tn_thresh",
+    "heat_wave_tx_thresh",
+    "heat_wave_window",
     "index_states",
     "center_point",
     "selected_variables",
