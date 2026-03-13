@@ -4,7 +4,7 @@ from .widgets import build_panel_radio_group, build_panel_continue_button
 from .user_warnings import get_user_warning_pane
 
 
-def step3_output_view():
+def step2_output_view():
     state = get_state()
     output_intent_options = {
         "Climate Indices Only (Recommended)": "indices",

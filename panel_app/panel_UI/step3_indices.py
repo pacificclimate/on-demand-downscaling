@@ -34,7 +34,7 @@ from .config import (
 from .config import finch
 
 
-def step4_indices_view():
+def step3_indices_view():
     state = get_state()
     if state.output_intent == "downscale":
         state.indices_selected = []

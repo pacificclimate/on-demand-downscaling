@@ -199,7 +199,7 @@ def make_overlay_layers(pt):
     return marker, gcm_layer, obs_layer, bounds
 
 
-def step2_region_view():
+def step1_region_view():
     state = get_state()
     # Force create a fresh map widget to avoid reference conflicts
     map_widget = get_map_widget(force_new=True)

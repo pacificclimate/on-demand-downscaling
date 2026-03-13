@@ -50,7 +50,7 @@ def validate_registration(username: str, email: str, password: str):
     return errs
 
 
-def step1_authentication(next_step):
+def step0_authentication(next_step):
     state = get_state()
     signin_panel = pn.Column(width=500, margin=(20, 20))
 
