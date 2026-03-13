@@ -4,7 +4,7 @@ from .widgets import build_panel_radio_group, build_panel_continue_button
 from .user_warnings import get_user_warning_pane
 
 
-def step3_output_view():
+def step2_output_view():
     state = get_state()
     output_intent_options = {
         "Climate Indices Only (Recommended)": "indices",
@@ -31,7 +31,7 @@ def step3_output_view():
     continue_btn.on_click(on_next)
     back_btn.on_click(on_prev)
     return pn.Column(
-        pn.pane.Markdown("## Step 3: Desired Outputs"),
+        pn.pane.Markdown("## Step 2: Desired Outputs"),
         intent_selector,
         pn.Row(back_btn, continue_btn),
         get_user_warning_pane(),

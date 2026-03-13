@@ -4,7 +4,7 @@ from .state import get_state, prev_step, set_step
 from .widgets import build_panel_continue_button, summary_markdown
 from .user_warnings import user_warn, get_user_warning_pane
 from .email_results import send_summary_email
-from .step2_downscale import update_state_from_controls
+from .step1_downscale import update_state_from_controls
 from .tasks import process_odds_job
 from .config import INDEX_FUNCTIONS_STRUCTURE, PARAMS_TO_WATCH
 from rq import Queue
@@ -59,7 +59,7 @@ def notify_on_failure(job, connection, exc_type, exc_value, traceback):
     send_summary_email(TEAM_ALERTS_EMAIL, subject, team_body)
 
 
-def step5_summary_view():
+def step4_summary_view():
     update_state_from_controls()
     state = get_state()
     summary_md = pn.pane.Markdown(summary_markdown(state))
@@ -146,7 +146,7 @@ def step5_summary_view():
             job_params,
             job_timeout=60 * 60 * 6,
             result_ttl=60 * 60 * 24 * 7,
-            on_failure="panel_app.panel_UI.step5_summary.notify_on_failure",
+            on_failure="panel_app.panel_UI.step4_summary.notify_on_failure",
         )
         job.meta["user_email"] = user_email
         job.save()

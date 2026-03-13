@@ -1,34 +1,23 @@
-In this step, you will configure the downscaling of climate model data to high-resolution grids for your selected region.
+Please choose what kind of outputs you would like to receive:
 
-## What to do
+### 1. Climate Indices Only (Recommended – much smaller files)
 
-1. **Choose a map location**  
-   Click on the interactive map to select the center point for your study region.
+- From the menu, select the desired climate indices
 
-   > - The **blue box** shows the medium-resolution input area region (1° x 1°).
-   > - The **red box** shows the high-resolution output area (0.5° x 0.5°).
+### 2. Daily Outputs Only
 
-2. **Set parameters using the controls**
+- Skip the indices selection and receive the **daily** high-resolution climate data for up to 4 climate variables.
+- **Warning:** High-resolution outputs are large files:
+  - ~400 MB per variable (PCIC-Blend)
+  - ~350 MB per variable (CanDCS, 1950-2010)
+  - ~800 MB per variable (CanDCS, 1981-2100)
 
-   - **Region name**: Assign a name to your region (for file naming/tracking).
-   - **Climate variables**: Choose one or more variables (precipitation, temperature max/min/mean).
-   - **Dataset**: Select the input dataset (PCIC-Blend or CanDCS). 
-     - If you select CanDCS, you’ll need to specify the:
-       - Downscaling technique (Univariate or Multivariate)
-       - Climate model
-       - CanESM5 run (if relevant)
-       - Emissions scenario
-       - Time period to downscale
+### 3. Both Daily Outputs and Climate Indices
 
-3. **Continue**  
-   Once all inputs are specified, click **Continue** to proceed.
+- Receive both the full high-resolution outputs and the selected climate indices for your study region.
 
----
 
-## How it works
-
-- This step uses PCIC’s [Chickadee](https://github.com/pacificclimate/chickadee) service (built on [ClimDown](https://github.com/pacificclimate/climdown)) to downscale medium-resolution climate data to a high-resolution PRISM-adjusted grid.
-- The larger blue (input) region ensures your high-resolution target region is fully covered.
+**Download links will be provided when processing is complete.**
 
 ---
 

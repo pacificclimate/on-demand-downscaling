@@ -17,7 +17,7 @@ services:
     depends_on:
       - redis
     command: >
-      poetry run panel serve panel_app/panel_app.py --address 0.0.0.0 --port 5006
+      poetry run panel serve panel_app/panel_app.py --address 0.0.0.0 --port 5006 --ico-path /app/panel_app/panel_UI/assets/favicon.ico
 
   worker:
     build:

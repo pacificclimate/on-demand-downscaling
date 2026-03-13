@@ -199,7 +199,7 @@ def make_overlay_layers(pt):
     return marker, gcm_layer, obs_layer, bounds
 
 
-def step2_region_view():
+def step1_region_view():
     state = get_state()
     # Force create a fresh map widget to avoid reference conflicts
     map_widget = get_map_widget(force_new=True)
@@ -367,7 +367,10 @@ def step2_region_view():
     sync_canesm5_run_control()
 
     return pn.Column(
-        pn.pane.Markdown("# Step 2: Select Region and Downscaling Parameters"),
+        pn.pane.Markdown(
+            "# Step 1: Select Region and Downscaling Parameters <small>(Instructions Below)</small>",
+            sizing_mode="stretch_width",
+        ),
         pn.Row(
             pn.panel(
                 map_widget,
