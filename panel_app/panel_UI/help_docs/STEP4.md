@@ -1,21 +1,20 @@
-## 4. Computing Climate Indices
+## 3. Computing Climate Indices
 
-Now, choose which climate indices you want to calculate for your selected region and variables.
+Next, choose which climate indices you want to calculate for your selected region and variables.
 
-**How this works:**
-
-- You have already chosen the climate variables to downscale and your study region.
-- Now, select up to **8 climate indices** you would like to compute (The list will update automatically to match your chosen variables.).
-- Once you continue, **both downscaling and index calculations will be run as a single process** for your selections.
-  - If you change your selection to “High-resolution Outputs Only” in the previous step, this page will be skipped and only downscaling will run.
+- The climate indices shown correspond to the climate variables specified in Step 2. If a desired index does not appear, you may have to return to Step 1. For example, if you want to compute Freeze-Thaw Days, you need to select BOTH Tmax and Tmin in Step 1.
+- Select the climate indices you would like to compute. Note that **the processing time scales approximately with the number of indices**.
+- Once you press Continue, **both downscaling and index calculations will be run as a single process** for your selections.
+  - If you change your selection to “Daily Outputs Only” in the previous step, this page will be skipped and only downscaling will run.
 
 ### About the indices
 
-- These indices are computed using Ouranos's [finch](https://github.com/bird-house/finch/tree/master) service, which is based on their [xclim](https://github.com/Ouranosinc/xclim/tree/main) package.
-- Currently, a subset of the [core climdex indices](https://climate-scenarios.canada.ca/?page=climdex-indices) and degree days can be calculated with more to be available in the future. In appropriate cases, you can specify the threshold value and time resolution.
-- Indices requiring multiple variables (e.g. “Extreme Temperature Range”) can only be computed if you selected all required variables with identical region and dataset parameters.
+- The indices are computed using Ouranos's [finch](https://github.com/bird-house/finch/tree/master) service, which is based on their [xclim](https://github.com/Ouranosinc/xclim/tree/main) package.
+- The set of available indices includes most of the [core climdex indices](https://climate-scenarios.canada.ca/?page=climdex-indices) and degree days, supplemented by others that allow additional flexibility.  This index set will be reviewed regularly and may change in future.
+- For some indices, you need to specify threshold value(s) and/or time resolution.
+- Indices requiring multiple variables (e.g. “Extreme Temperature Range”) can only be computed if all required variables were slected in Step 1.
 
-### The table below summarizes the available indices (refer to the climdex indices page for more details):
+### The table below summarizes the available indices (refer to the Climdex indices page for more details):
 
 | Variable              | Climdex Index Name / Description      | Index Name in Notebook                  | Threshold Value                                                | Finch Process                  |
 | --------------------- | ------------------------------------- | --------------------------------------- | -------------------------------------------------------------- | ------------------------------ |

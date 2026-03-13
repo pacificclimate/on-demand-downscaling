@@ -367,7 +367,10 @@ def step2_region_view():
     sync_canesm5_run_control()
 
     return pn.Column(
-        pn.pane.Markdown("# Step 2: Select Region and Downscaling Parameters"),
+        pn.pane.Markdown(
+            "# Step 1: Select Region and Downscaling Parameters <small>(Instructions Below)</small>",
+            sizing_mode="stretch_width",
+        ),
         pn.Row(
             pn.panel(
                 map_widget,

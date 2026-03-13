@@ -1,12 +1,8 @@
 Please choose what kind of outputs you would like to receive:
 
-**Download links will be provided when processing is complete.**
+### 1. Climate Indices Only (Recommended – much smaller files)
 
-### 1. Climate Indices Only (Recommended)
-
-- Receive high-resolution (800 m) climate indices calculated for your selected time interval.
-- Select up to **8 climate indices** for your region and time period.
-- You will receive download links for the computed indices (much smaller files).
+- From the menu, select the desired climate indices
 
 ### 2. Daily Outputs Only
 
@@ -16,9 +12,12 @@ Please choose what kind of outputs you would like to receive:
   - ~350 MB per variable (CanDCS, 1950-2010)
   - ~800 MB per variable (CanDCS, 1981-2100)
 
-### 3. Both (High-resolution Outputs and Climate Indices)
+### 3. Both Daily Outputs and Climate Indices
 
 - Receive both the full high-resolution outputs and the selected climate indices for your study region.
+
+
+**Download links will be provided when processing is complete.**
 
 ---
 

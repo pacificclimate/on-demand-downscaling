@@ -1,13 +1,14 @@
-### Welcome to the Downscaling and Indices Application!
+## Welcome to PCIC’s On-Demand Fine-Scale Downscaling Application!
 
 To use this tool, you must sign in or register for an account.
 
 ## What is this tool?
 
-This application allows you to:
+This application has the following capabilities:
 
-- **Perform statistical downscaling of climate model data (e.g., CanDCS)**, from medium-resolution (~10 km) grids to high-resolution (~800 m) grids.
-- **Compute climate indices** including extremes, durations, and threshold-based metrics for precipitation and temperature on the high-resolution data, using flexible user-selected regions and scenarios.
+- **Over a limited area specified by the user, anywhere over Canada, perform statistical downscaling of daily, medium-resolution gridded observations or model output** (i.e., PCIC-Blend or CanDCS, ~10 km scale) onto a uniform, high-resolution grid (~800 m scale).
+- Input data for **temperature and precipitation** are supported.
+- **Subsequently compute a host of climate indices**, including extremes, durations, and threshold-based metrics for precipitation and temperature on the high-resolution data.
 
 The workflow takes advantage of applications used in the DACCS project called "birds", which convert packages into web services:
 

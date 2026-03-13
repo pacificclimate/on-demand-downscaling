@@ -1041,7 +1041,7 @@ def summary_markdown(state):
     includes_downscaling = "✓" if intent != "indices" else "✗"
 
     lines = [
-        "## Summary",
+        "## Step 4: Summary and Launch",
         f"**Center**: {center}",
         f"**Region**: {region}",
         f"**Dataset**: {dataset} ({internal_dataset})",

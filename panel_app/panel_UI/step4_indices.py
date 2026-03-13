@@ -156,7 +156,7 @@ def step4_indices_view():
             multivar_box.layout.display = ""
             indices_panel.append(multivar_box)
 
-    # In case step2 variables changed
+    # In case step1 variables changed
     state.param.watch(lambda *events: update_indices_panel(), ["selected_variables"])
     update_indices_panel()
 
@@ -225,7 +225,7 @@ def step4_indices_view():
     back_btn.on_click(on_prev)
 
     return pn.Column(
-        pn.pane.Markdown("## Step 4: Calculate Indices"),
+        pn.pane.Markdown("## Step 3: Compute Climate Indices"),
         indices_panel,
         pn.Row(back_btn, continue_btn),
         get_user_warning_pane(),

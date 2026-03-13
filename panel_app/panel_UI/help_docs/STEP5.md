@@ -1,4 +1,4 @@
-## Review and Launch
+## Step 4: Summary and Launch
 
 This is your summary and final confirmation step.
 

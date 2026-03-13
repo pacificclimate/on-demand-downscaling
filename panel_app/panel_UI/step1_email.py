@@ -102,7 +102,7 @@ def step1_authentication(next_step):
     login_password = pn.widgets.PasswordInput(name="Password")
     login_submit = pn.widgets.Button(name="Login", button_type="primary")
     login_form = pn.Column(
-        "# Step 1: Sign In or Register",
+        "# Sign In or Register",
         login_username,
         login_password,
         login_submit,

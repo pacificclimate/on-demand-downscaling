@@ -31,7 +31,7 @@ def step3_output_view():
     continue_btn.on_click(on_next)
     back_btn.on_click(on_prev)
     return pn.Column(
-        pn.pane.Markdown("## Step 3: Desired Outputs"),
+        pn.pane.Markdown("## Step 2: Desired Outputs"),
         intent_selector,
         pn.Row(back_btn, continue_btn),
         get_user_warning_pane(),
