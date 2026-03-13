@@ -13,7 +13,7 @@ In this step, you will specify the region of interest, input data, type of downs
 2. **Set parameters using the controls**
 
    - **Region name**: Assign a name to your region (for file naming/tracking).
-   - **Climate variables**: Choose the desired variable(s): daily total precipitation, daily mean, maximum or minimum temperature. To choose more than one variable, hold the Shift key while clicking the button.
+   - **Climate variables**: Choose the desired variable(s): daily total precipitation, daily mean, maximum or minimum temperature.
    - **Dataset**: Select the input dataset (PCIC-Blend or CanDCS). 
      - If you select CanDCS, you’ll need to specify the:
        - Downscaling technique (Univariate or Multivariate)
