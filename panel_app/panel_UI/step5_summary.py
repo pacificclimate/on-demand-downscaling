@@ -84,8 +84,15 @@ def step5_summary_view():
                 var = idx["variable"]
                 print(f"Adding index var: {var}")
                 if var == "multivar":
-                    variables_to_downscale.add("tasmin")
-                    variables_to_downscale.add("tasmax")
+                    index_name = idx.get("index_name")
+                    if index_name in {"Snowfall", "Rainfall"}:
+                        variables_to_downscale.update({"pr", "tasmean"})
+                    elif index_name == "Heat Wave Days":
+                        variables_to_downscale.add("tasmax")
+                    elif index_name in {"Heat Wave Number", "Heat Wave Maximum Length"}:
+                        variables_to_downscale.update({"tasmin", "tasmax"})
+                    else:
+                        variables_to_downscale.update({"tasmin", "tasmax"})
                 else:
                     variables_to_downscale.add(var)
         else:

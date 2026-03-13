@@ -26,8 +26,20 @@ class AppState(param.Parameterized):
     output_intent = param.Parameter(default=None)
     rxnday = param.String(default="1 day")
     rnnmm = param.String(default="10 mm/day")
-    summer_days = param.String(default="25 degC")
-    tropical_nights = param.String(default="20 degC")
+    precip_percentile = param.String(default="95 pct")
+    precip_thresh = param.String(default="1 mm/day")
+    tx_days_above_thresh = param.String(default="25 degC")
+    tn_days_above_thresh = param.String(default="20 degC")
+    tn_days_below_thresh = param.String(default="-10 degC")
+    hdd_thresh = param.String(default="18 degC")
+    cdd_thresh = param.String(default="18 degC")
+    cold_spell_thresh = param.String(default="-15 degC")
+    cold_spell_window = param.String(default="2 days")
+    cwd_thresh = param.String(default="1 mm/day")
+    cdd_dry_thresh = param.String(default="1 mm/day")
+    heat_wave_tn_thresh = param.String(default="20 degC")
+    heat_wave_tx_thresh = param.String(default="30 degC")
+    heat_wave_window = param.String(default="2 days")
     index_states = param.Dict(default={})
     center_point = param.Parameter(default=None)
     selected_variables = param.List(default=[])
@@ -228,17 +240,35 @@ def build_button(description="Button", button_style="", **kwargs):
 def build_selection_slider(options, state, attr, value=None, description="", **kwargs):
     if value is None and options:
         value = options[0]
+    # Hide readout textbox; a numeric editor is rendered beside the slider row.
+    kwargs.setdefault("readout", False)
+    kwargs.setdefault("tooltip", "")
+    kwargs.setdefault("description_tooltip", "")
+    valid_options = list(options)
+    valid_values = set(valid_options)
+    last_valid = {"value": value if value in valid_values else valid_options[0]}
     slider = widgets.SelectionSlider(
         options=options, value=value, description=description, **kwargs
     )
 
     def _update(change):
-        setattr(state, attr, change["new"])
+        new_value = change["new"]
+        if new_value in valid_values:
+            last_valid["value"] = new_value
+            setattr(state, attr, new_value)
+            return
+        slider.value = last_valid["value"]
 
     slider.observe(_update, names="value")
 
     def _refresh(*a):
-        slider.value = getattr(state, attr)
+        current = getattr(state, attr)
+        if current in valid_values:
+            last_valid["value"] = current
+            slider.value = current
+        else:
+            setattr(state, attr, last_valid["value"])
+            slider.value = last_valid["value"]
 
     state.param.watch(lambda e: _refresh(), attr)
     return slider
@@ -247,16 +277,19 @@ def build_selection_slider(options, state, attr, value=None, description="", **k
 # ----------- DYNAMIC INDEX STATE BUILDERS -----------
 
 
-def build_index_checkbox(description, state, value=False, style=None, **kwargs):
+def build_index_checkbox(
+    description, state, value=False, style=None, key_prefix=None, **kwargs
+):
     if style is None:
         style = {"description_width": "initial"}
-    key = (
+    key_base = (
         description.replace(" ", "_")
         .replace("-", "_")
         .replace(".", "")
         .replace(">", "gt")
         .replace("<", "lt")
     )
+    key = f"{key_prefix}_{key_base}" if key_prefix else key_base
     if key not in state.index_states or not isinstance(state.index_states[key], dict):
         state.index_states[key] = {
             "selected": value,
@@ -548,49 +581,196 @@ def build_downscaling_controls(
 def build_index_sliders(
     N_DAY_PRECIP_OPTIONS,
     WETDAY_THRESHOLD_OPTIONS,
-    SUMMER_DAY_THRESHOLD_OPTIONS,
-    TROPICAL_NIGHTS_THRESHOLD_OPTIONS,
+    PRECIP_PERCENTILE_OPTIONS,
+    PRECIP_THRESHOLD_OPTIONS,
+    TX_DAYS_ABOVE_THRESHOLD_OPTIONS,
+    TN_DAYS_ABOVE_THRESHOLD_OPTIONS,
+    TN_DAYS_BELOW_THRESHOLD_OPTIONS,
+    HDD_THRESHOLD_OPTIONS,
+    CDD_THRESHOLD_OPTIONS,
+    COLD_SPELL_THRESHOLD_OPTIONS,
+    COLD_SPELL_N_DAY_OPTIONS,
+    CWD_THRESHOLD_OPTIONS,
+    CDD_DRY_THRESHOLD_OPTIONS,
+    HEAT_WAVE_TN_THRESHOLD_OPTIONS,
+    HEAT_WAVE_TX_THRESHOLD_OPTIONS,
+    HEAT_WAVE_N_DAY_OPTIONS,
     state,
 ):
+    slider_layout = widgets.Layout(
+        width="164px",
+        min_width="164px",
+        flex="0 0 164px",
+        margin="0 6px 0 0",
+    )
+    slider_style = {"description_width": "72px"}
     rxnday = build_selection_slider(
         N_DAY_PRECIP_OPTIONS,
         state=state,
         attr="rxnday",
         value="1 day",
         description="N-day Precip:",
+        layout=slider_layout,
+        style=slider_style,
     )
     rnnmm = build_selection_slider(
         WETDAY_THRESHOLD_OPTIONS,
         state=state,
         attr="rnnmm",
         value="10 mm/day",
-        description="Wetday Threshold:",
+        description="PR:",
+        layout=slider_layout,
+        style=slider_style,
     )
-    summer_days = build_selection_slider(
-        SUMMER_DAY_THRESHOLD_OPTIONS,
+    precip_percentile = build_selection_slider(
+        PRECIP_PERCENTILE_OPTIONS,
         state=state,
-        attr="summer_days",
+        attr="precip_percentile",
+        value="95 pct",
+        description="Percentile:",
+        layout=slider_layout,
+        style=slider_style,
+    )
+    precip_thresh = build_selection_slider(
+        PRECIP_THRESHOLD_OPTIONS,
+        state=state,
+        attr="precip_thresh",
+        value="1 mm/day",
+        description="PR:",
+        layout=slider_layout,
+        style=slider_style,
+    )
+    tx_days_above_thresh = build_selection_slider(
+        TX_DAYS_ABOVE_THRESHOLD_OPTIONS,
+        state=state,
+        attr="tx_days_above_thresh",
         value="25 degC",
-        description="Summer Day Threshold:",
+        description="TX:",
+        layout=slider_layout,
+        style=slider_style,
     )
-    tropical_nights = build_selection_slider(
-        TROPICAL_NIGHTS_THRESHOLD_OPTIONS,
+    tn_days_above_thresh = build_selection_slider(
+        TN_DAYS_ABOVE_THRESHOLD_OPTIONS,
         state=state,
-        attr="tropical_nights",
+        attr="tn_days_above_thresh",
         value="20 degC",
-        description="Tropical Nights Threshold:",
+        description="TN:",
+        layout=slider_layout,
+        style=slider_style,
+    )
+    tn_days_below_thresh = build_selection_slider(
+        TN_DAYS_BELOW_THRESHOLD_OPTIONS,
+        state=state,
+        attr="tn_days_below_thresh",
+        value="-10 degC",
+        description="TN:",
+        layout=slider_layout,
+        style=slider_style,
+    )
+    hdd_thresh = build_selection_slider(
+        HDD_THRESHOLD_OPTIONS,
+        state=state,
+        attr="hdd_thresh",
+        value="18 degC",
+        description="TM:",
+        layout=slider_layout,
+        style=slider_style,
+    )
+    cdd_thresh = build_selection_slider(
+        CDD_THRESHOLD_OPTIONS,
+        state=state,
+        attr="cdd_thresh",
+        value="18 degC",
+        description="TM:",
+        layout=slider_layout,
+        style=slider_style,
+    )
+    cold_spell_thresh = build_selection_slider(
+        COLD_SPELL_THRESHOLD_OPTIONS,
+        state=state,
+        attr="cold_spell_thresh",
+        value="-15 degC",
+        description="TM:",
+        layout=slider_layout,
+        style=slider_style,
+    )
+    cold_spell_window = build_selection_slider(
+        COLD_SPELL_N_DAY_OPTIONS,
+        state=state,
+        attr="cold_spell_window",
+        value="2 days",
+        description="N-days:",
+        layout=slider_layout,
+        style=slider_style,
+    )
+    cwd_thresh = build_selection_slider(
+        CWD_THRESHOLD_OPTIONS,
+        state=state,
+        attr="cwd_thresh",
+        value="1 mm/day",
+        description="Wet:",
+        layout=slider_layout,
+        style=slider_style,
+    )
+    cdd_dry_thresh = build_selection_slider(
+        CDD_DRY_THRESHOLD_OPTIONS,
+        state=state,
+        attr="cdd_dry_thresh",
+        value="1 mm/day",
+        description="Dry:",
+        layout=slider_layout,
+        style=slider_style,
+    )
+    heat_wave_tn_thresh = build_selection_slider(
+        HEAT_WAVE_TN_THRESHOLD_OPTIONS,
+        state=state,
+        attr="heat_wave_tn_thresh",
+        value="20 degC",
+        description="TN:",
+        layout=slider_layout,
+        style=slider_style,
+    )
+    heat_wave_tx_thresh = build_selection_slider(
+        HEAT_WAVE_TX_THRESHOLD_OPTIONS,
+        state=state,
+        attr="heat_wave_tx_thresh",
+        value="30 degC",
+        description="TX:",
+        layout=slider_layout,
+        style=slider_style,
+    )
+    heat_wave_window = build_selection_slider(
+        HEAT_WAVE_N_DAY_OPTIONS,
+        state=state,
+        attr="heat_wave_window",
+        value="2 days",
+        description="N-days:",
+        layout=slider_layout,
+        style=slider_style,
     )
     return dict(
         rxnday=rxnday,
         rnnmm=rnnmm,
-        summer_days=summer_days,
-        tropical_nights=tropical_nights,
+        precip_percentile=precip_percentile,
+        precip_thresh=precip_thresh,
+        tx_days_above_thresh=tx_days_above_thresh,
+        tn_days_above_thresh=tn_days_above_thresh,
+        tn_days_below_thresh=tn_days_below_thresh,
+        hdd_thresh=hdd_thresh,
+        cdd_thresh=cdd_thresh,
+        cold_spell_thresh=cold_spell_thresh,
+        cold_spell_window=cold_spell_window,
+        cwd_thresh=cwd_thresh,
+        cdd_dry_thresh=cdd_dry_thresh,
+        heat_wave_tn_thresh=heat_wave_tn_thresh,
+        heat_wave_tx_thresh=heat_wave_tx_thresh,
+        heat_wave_window=heat_wave_window,
     )
 
 
 def get_index_resolution_options(process, base_res, months, seasons):
-    options = list(base_res)
     args = getfullargspec(process).args
+    options = list(base_res) if "freq" in args else ["Annual"]
     if "month" in args:
         options += months
     if "season" in args:
@@ -603,40 +783,173 @@ def build_index_checkboxes(
     RESOLUTIONS,
     MONTHS,
     SEASONS,
-    rxnday,
-    rnnmm,
-    summer_days,
-    tropical_nights,
+    sliders,
     MAX_SELECTED_INDICES,
     user_warn,
     state,
     all_index_checkboxes=None,
     description_style=None,
+    key_prefix=None,
 ):
     if description_style is None:
         description_style = {"description_width": "initial"}
     if all_index_checkboxes is None:
         all_index_checkboxes = []
 
-    slider_map = {
-        "Max N-day Precip Amount": rxnday,
-        "Days with Precip over N-mm": rnnmm,
-        "Summer Days": summer_days,
-        "Tropical Nights": tropical_nights,
+    def parse_numeric_option(option):
+        if not isinstance(option, str):
+            return None, None
+        parts = option.split(" ", 1)
+        try:
+            number = int(parts[0])
+        except ValueError:
+            return None, None
+        unit = parts[1] if len(parts) > 1 else ""
+        return number, unit
+
+    def clone_slider(template):
+        return widgets.SelectionSlider(
+            options=template.options,
+            value=template.value,
+            description=template.description,
+            layout=template.layout,
+            style=template.style,
+            readout=template.readout,
+            tooltip="",
+            description_tooltip="",
+            continuous_update=template.continuous_update,
+            disabled=template.disabled,
+            orientation=template.orientation,
+        )
+
+    threshold_specs = {
+        "Max N-day Precip Amount": [{"slider": "rxnday", "param": "window"}],
+        "Days with Precip over N-mm": [{"slider": "rnnmm", "param": "thresh"}],
+        "Days Over Precip Percentile Threshold": [
+            {"slider": "precip_percentile", "param": "percentile"},
+            {"slider": "precip_thresh", "param": "thresh"},
+        ],
+        "Days Above a Specified TX": [
+            {"slider": "tx_days_above_thresh", "param": "thresh"}
+        ],
+        "Days Above a Specified TN": [
+            {"slider": "tn_days_above_thresh", "param": "thresh"}
+        ],
+        "Days Below a Specified TN": [
+            {"slider": "tn_days_below_thresh", "param": "thresh"}
+        ],
+        "Heating Degree Days": [{"slider": "hdd_thresh", "param": "thresh"}],
+        "Cooling Degree Days": [{"slider": "cdd_thresh", "param": "thresh"}],
+        "Cold Spell Days": [
+            {"slider": "cold_spell_thresh", "param": "thresh"},
+            {"slider": "cold_spell_window", "param": "window"},
+        ],
+        "Maximum Length of Wet Spell": [{"slider": "cwd_thresh", "param": "thresh"}],
+        "Maximum Length of Dry Spell": [
+            {"slider": "cdd_dry_thresh", "param": "thresh"}
+        ],
+        "Heat Wave Number": [
+            {"slider": "heat_wave_tn_thresh", "param": "tn_thresh"},
+            {"slider": "heat_wave_tx_thresh", "param": "tx_thresh"},
+            {"slider": "heat_wave_window", "param": "window"},
+        ],
+        "Heat Wave Days": [
+            {"slider": "heat_wave_tx_thresh", "param": "tx_thresh"},
+            {"slider": "heat_wave_window", "param": "window"},
+        ],
+        "Heat Wave Maximum Length": [
+            {"slider": "heat_wave_tn_thresh", "param": "tn_thresh"},
+            {"slider": "heat_wave_tx_thresh", "param": "tx_thresh"},
+            {"slider": "heat_wave_window", "param": "window"},
+        ],
     }
     checkboxes = []
     for index, process in indices.items():
         options = get_index_resolution_options(process, RESOLUTIONS, MONTHS, SEASONS)
         checkbox, key = build_index_checkbox(
-            description=index, state=state, value=False, style=description_style
+            description=index,
+            state=state,
+            value=False,
+            style=description_style,
+            key_prefix=key_prefix,
+            layout=widgets.Layout(width="256px", min_width="256px"),
         )
         dropdown = build_index_dropdown(
             options=options, state=state, value=options[0], key=key
         )
+        dropdown.layout = widgets.Layout(width="110px", min_width="110px")
+        if len(options) <= 1:
+            dropdown.disabled = True
         children = [checkbox, dropdown]
-        slider = slider_map.get(index)
-        if slider:
-            children.append(slider)
+        slider_templates = threshold_specs.get(index, [])
+        row_sliders = [
+            clone_slider(sliders[item["slider"]])
+            for item in slider_templates
+            if item["slider"] in sliders
+        ]
+        for slider, spec in zip(row_sliders, slider_templates):
+            slider._is_threshold_control = True
+            slider._threshold_param_key = spec["param"]
+            numeric_map = {}
+            unit = ""
+            for raw in list(slider.options):
+                option_value = raw[1] if isinstance(raw, tuple) else raw
+                number, parsed_unit = parse_numeric_option(option_value)
+                if number is None:
+                    numeric_map = {}
+                    break
+                numeric_map[number] = option_value
+                if not unit:
+                    unit = parsed_unit
+
+            if numeric_map:
+                current_number, _ = parse_numeric_option(slider.value)
+                numeric_input = widgets.BoundedIntText(
+                    value=current_number,
+                    min=min(numeric_map),
+                    max=max(numeric_map),
+                    step=1,
+                    layout=widgets.Layout(width="46px", min_width="46px"),
+                )
+                unit_label = widgets.HTML(
+                    value=f"<span>{unit}</span>",
+                    layout=widgets.Layout(width="56px", min_width="56px"),
+                )
+
+                def _on_slider_change(change, num_input=numeric_input):
+                    new_number, _ = parse_numeric_option(change["new"])
+                    if new_number is not None and num_input.value != new_number:
+                        num_input.value = new_number
+
+                def _on_numeric_change(change, sl=slider, options_by_num=numeric_map):
+                    number = int(change["new"])
+                    target = options_by_num.get(number)
+                    if target is None:
+                        user_warn(
+                            f"Invalid value for {sl.description}. Allowed values: {sorted(options_by_num)}",
+                            "warning",
+                        )
+                        return
+                    if sl.value != target:
+                        sl.value = target
+
+                slider.observe(_on_slider_change, names="value")
+                numeric_input.observe(_on_numeric_change, names="value")
+                children.append(
+                    build_hbox(
+                        [slider, numeric_input, unit_label],
+                        layout=widgets.Layout(
+                            align_items="center",
+                            overflow="hidden",  # Removes horizontal scrollbar
+                            flex="0 0 auto",
+                            width="274px",
+                            min_width="274px",
+                            margin="0 1px 0 0",
+                        ),
+                    )
+                )
+            else:
+                children.append(slider)
         all_index_checkboxes.append(checkbox)
         if key not in state.index_states or not isinstance(
             state.index_states[key], dict
@@ -645,7 +958,9 @@ def build_index_checkboxes(
             state.index_states[key] = {
                 "selected": checkbox.value,
                 "resolution": options[0] if options else None,
-                "slider": slider.value if slider else None,
+                "sliders": {
+                    slider._threshold_param_key: slider.value for slider in row_sliders
+                },
             }
 
         def on_check(event, cb=checkbox):
@@ -674,19 +989,33 @@ def build_index_checkboxes(
 
         dropdown.observe(_update_dropdown, names="value")
 
-        if slider:
+        for slider in row_sliders:
 
             def _update_slider(change, key=key):
                 entry = state.index_states.get(key)
                 if not isinstance(entry, dict):
                     entry = {}
-                entry["slider"] = change["new"]
+                slider_values = entry.get("sliders", {})
+                slider_key = getattr(change["owner"], "_threshold_param_key", None)
+                if not slider_key:
+                    return
+                slider_values[slider_key] = change["new"]
+                entry["sliders"] = slider_values
                 state.index_states[key] = entry
 
             slider.observe(_update_slider, names="value")
 
         checkbox.observe(on_check, names="value")
-        checkboxes.append(build_hbox(children))
+        checkboxes.append(
+            build_hbox(
+                children,
+                layout=widgets.Layout(
+                    align_items="center",
+                    justify_content="flex-start",
+                    gap="1px",
+                ),
+            )
+        )
     return checkboxes, all_index_checkboxes
 
 

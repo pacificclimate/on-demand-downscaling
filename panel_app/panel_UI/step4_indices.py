@@ -11,8 +11,20 @@ from .user_warnings import user_warn, get_user_warning_pane
 from .config import (
     N_DAY_PRECIP_OPTIONS,
     WETDAY_THRESHOLD_OPTIONS,
-    SUMMER_DAY_THRESHOLD_OPTIONS,
-    TROPICAL_NIGHTS_THRESHOLD_OPTIONS,
+    PRECIP_PERCENTILE_OPTIONS,
+    PRECIP_THRESHOLD_OPTIONS,
+    TX_DAYS_ABOVE_THRESHOLD_OPTIONS,
+    TN_DAYS_ABOVE_THRESHOLD_OPTIONS,
+    TN_DAYS_BELOW_THRESHOLD_OPTIONS,
+    HDD_THRESHOLD_OPTIONS,
+    CDD_THRESHOLD_OPTIONS,
+    COLD_SPELL_THRESHOLD_OPTIONS,
+    COLD_SPELL_N_DAY_OPTIONS,
+    CWD_THRESHOLD_OPTIONS,
+    CDD_DRY_THRESHOLD_OPTIONS,
+    HEAT_WAVE_TN_THRESHOLD_OPTIONS,
+    HEAT_WAVE_TX_THRESHOLD_OPTIONS,
+    HEAT_WAVE_N_DAY_OPTIONS,
     INDEX_FUNCTIONS_STRUCTURE,
     RESOLUTIONS,
     MONTHS,
@@ -25,26 +37,43 @@ from .config import finch
 def step4_indices_view():
     state = get_state()
     if state.output_intent == "downscale":
-        state.indices_selected = [] 
+        state.indices_selected = []
         return "SKIP"
     # Build sliders
     sliders = build_index_sliders(
         N_DAY_PRECIP_OPTIONS,
         WETDAY_THRESHOLD_OPTIONS,
-        SUMMER_DAY_THRESHOLD_OPTIONS,
-        TROPICAL_NIGHTS_THRESHOLD_OPTIONS,
+        PRECIP_PERCENTILE_OPTIONS,
+        PRECIP_THRESHOLD_OPTIONS,
+        TX_DAYS_ABOVE_THRESHOLD_OPTIONS,
+        TN_DAYS_ABOVE_THRESHOLD_OPTIONS,
+        TN_DAYS_BELOW_THRESHOLD_OPTIONS,
+        HDD_THRESHOLD_OPTIONS,
+        CDD_THRESHOLD_OPTIONS,
+        COLD_SPELL_THRESHOLD_OPTIONS,
+        COLD_SPELL_N_DAY_OPTIONS,
+        CWD_THRESHOLD_OPTIONS,
+        CDD_DRY_THRESHOLD_OPTIONS,
+        HEAT_WAVE_TN_THRESHOLD_OPTIONS,
+        HEAT_WAVE_TX_THRESHOLD_OPTIONS,
+        HEAT_WAVE_N_DAY_OPTIONS,
         state,
     )
-    rxnday = sliders["rxnday"]
-    rnnmm = sliders["rnnmm"]
-    summer_days = sliders["summer_days"]
-    tropical_nights = sliders["tropical_nights"]
     # Build index functions for each variable
     index_functions = {}
+    unavailable_processes = []
     for var, funcs in INDEX_FUNCTIONS_STRUCTURE.items():
-        index_functions[var] = {
-            name: getattr(finch, func_name) for name, func_name in funcs
-        }
+        available = {}
+        for name, func_name in funcs:
+            if hasattr(finch, func_name):
+                available[name] = getattr(finch, func_name)
+            else:
+                unavailable_processes.append(func_name)
+        index_functions[var] = available
+
+    if unavailable_processes:
+        missing = ", ".join(sorted(set(unavailable_processes)))
+        user_warn(f"Some indices are unavailable in Finch and were hidden: {missing}")
 
     # Build index boxes
     index_boxes = {}
@@ -55,28 +84,26 @@ def step4_indices_view():
             RESOLUTIONS,
             MONTHS,
             SEASONS,
-            rxnday,
-            rnnmm,
-            summer_days,
-            tropical_nights,
+            sliders,
             MAX_SELECTED_INDICES,
             user_warn,
             state,
             all_index_checkboxes=all_index_checkboxes,
+            key_prefix=var,
         )
 
     # Build vboxes
     pr_box = build_vbox(
-        [build_html("<b>Precipitation Indices</b>")] + index_boxes["pr"]
+        [build_html("<b>Precipitation Indices (PR)</b>")] + index_boxes["pr"]
     )
     tasmax_box = build_vbox(
-        [build_html("<b>Max Temp Indices</b>")] + index_boxes["tasmax"]
+        [build_html("<b>Max Temperature Indices (TX)</b>")] + index_boxes["tasmax"]
     )
     tasmin_box = build_vbox(
-        [build_html("<b>Min Temp Indices</b>")] + index_boxes["tasmin"]
+        [build_html("<b>Min Temperature Indices (TN)</b>")] + index_boxes["tasmin"]
     )
     tasmean_box = build_vbox(
-        [build_html("<b>Mean Temp Indices</b>")] + index_boxes["tasmean"]
+        [build_html("<b>Mean Temperature Indices (TM)</b>")] + index_boxes["tasmean"]
     )
     multivar_box = build_vbox(
         [build_html("<b>Multivariate Indices</b>")] + index_boxes["multivar"]
@@ -160,9 +187,32 @@ def step4_indices_view():
                     # Dropdown (resolution/month/season)
                     if len(children) > 1 and hasattr(children[1], "value"):
                         entry["resolution"] = children[1].value
-                    # If a slider is present (N-day, N-mm, etc.)
-                    if len(children) > 2 and hasattr(children[2], "value"):
-                        entry["threshold"] = children[2].value
+                    threshold_controls = []
+                    for child in children[2:]:
+                        if getattr(child, "_is_threshold_control", False):
+                            threshold_controls.append(child)
+                            continue
+                        if hasattr(child, "children"):
+                            threshold_controls.extend(
+                                grandchild
+                                for grandchild in child.children
+                                if getattr(grandchild, "_is_threshold_control", False)
+                            )
+                    if len(threshold_controls) == 1:
+                        entry["threshold"] = threshold_controls[0].value
+                    elif len(threshold_controls) > 1:
+                        entry["threshold"] = {}
+                        for control in threshold_controls:
+                            param_key = getattr(control, "_threshold_param_key", None)
+                            if param_key is None:
+                                param_key = (
+                                    control.description.split(":")[0]
+                                    .strip()
+                                    .lower()
+                                    .replace(" ", "_")
+                                    .replace("-", "_")
+                                )
+                            entry["threshold"][param_key] = control.value
                     selected_indices.append(entry)
 
         state.indices_selected = selected_indices

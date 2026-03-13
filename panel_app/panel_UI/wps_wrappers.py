@@ -24,6 +24,9 @@ import requests
 import xml.etree.ElementTree as ET
 from netCDF4 import Dataset
 from time import sleep
+import os
+import tempfile
+from inspect import getfullargspec
 
 
 def run_single_downscaling(ds_params):
@@ -232,22 +235,104 @@ def run_single_index(ix_params, downscaling_outputs):
     resolution = ix_params.get("resolution")
     threshold = ix_params.get("threshold")
     index_name = ix_params["index_name"]
+    temp_files = []
 
     try:
         process = getattr(finch, func_name)
+        params_identifier = func_name
+        params_threshold = threshold
         opendap_urls = []
+
+        def _parse_number(value, default=None):
+            if value is None:
+                return default
+            if isinstance(value, (int, float)):
+                return float(value)
+            if isinstance(value, str):
+                token = value.strip().split(" ", 1)[0]
+                try:
+                    return float(token)
+                except ValueError:
+                    return default
+            return default
+
+        def _build_pr_percentile_file(pr_url, percentile, wetday_thresh):
+            import xarray as xr
+
+            ds = xr.open_dataset(pr_url)
+            try:
+                if "pr" in ds.data_vars:
+                    source_var_name = "pr"
+                    pr = ds[source_var_name]
+                else:
+                    source_var_name = next(iter(ds.data_vars))
+                    pr = ds[source_var_name]
+                wet = pr.where(pr >= wetday_thresh)
+                pr_per = wet.quantile(
+                    percentile / 100.0, dim="time", skipna=True, keep_attrs=True
+                )
+                if "quantile" in pr_per.dims:
+                    pr_per = pr_per.squeeze("quantile", drop=True)
+                pr_per = pr_per.rename("pr_per")
+                # Finch/xclim unit checks require units on percentile input.
+                pr_per.attrs = dict(pr.attrs)
+                if "units" not in pr_per.attrs and "units" in ds[source_var_name].attrs:
+                    pr_per.attrs["units"] = ds[source_var_name].attrs["units"]
+                fd, tmp_path = tempfile.mkstemp(prefix="odds_pr_per_", suffix=".nc")
+                os.close(fd)
+                pr_per.to_dataset().to_netcdf(tmp_path)
+                return tmp_path
+            finally:
+                ds.close()
+
         if variable == "multivar":
-            # For multivariate indices, we need both tasmax and tasmin URLs
-            tasmax_url = find_opendap_url("tasmax", downscaling_outputs)
-            tasmin_url = find_opendap_url("tasmin", downscaling_outputs)
-            opendap_urls = [tasmin_url, tasmax_url]
+            if func_name in {"prsn", "prlp"}:
+                # Snow/rain partitioning requires precipitation + mean temperature.
+                pr_url = find_opendap_url("pr", downscaling_outputs)
+                tasmean_url = find_opendap_url("tasmean", downscaling_outputs)
+                opendap_urls = [pr_url, tasmean_url]
+            elif func_name == "heat_wave_index":
+                # Heat wave days process uses tasmax + single threshold.
+                tasmax_url = find_opendap_url("tasmax", downscaling_outputs)
+                opendap_urls = [tasmax_url]
+            elif func_name in {"heat_wave_frequency", "heat_wave_max_length"}:
+                # Heat wave number/max length use tasmin + tasmax.
+                tasmin_url = find_opendap_url("tasmin", downscaling_outputs)
+                tasmax_url = find_opendap_url("tasmax", downscaling_outputs)
+                opendap_urls = [tasmin_url, tasmax_url]
+            else:
+                # Remaining multivariate temperature indices use tasmin + tasmax.
+                tasmin_url = find_opendap_url("tasmin", downscaling_outputs)
+                tasmax_url = find_opendap_url("tasmax", downscaling_outputs)
+                opendap_urls = [tasmin_url, tasmax_url]
+        elif func_name == "days_over_precip_thresh":
+            # Finch expects both pr and pr_per datasets.
+            pr_url = find_opendap_url("pr", downscaling_outputs)
+            threshold_dict = threshold if isinstance(threshold, dict) else {}
+            percentile = _parse_number(threshold_dict.get("percentile"), default=95.0)
+            wetday_thresh = _parse_number(threshold_dict.get("thresh"), default=1.0)
+
+            if percentile <= 0:
+                # Threshold-only mode: delegate to wetdays.
+                process = getattr(finch, "wetdays")
+                params_identifier = "wetdays"
+                params_threshold = threshold_dict.get("thresh", "1 mm/day")
+                opendap_urls = [pr_url]
+            else:
+                pr_per_file = _build_pr_percentile_file(pr_url, percentile, wetday_thresh)
+                temp_files.append(pr_per_file)
+                opendap_urls = [pr_url, pr_per_file]
         else:
             opendap_urls = [find_opendap_url(variable, downscaling_outputs)]
 
-        if not opendap_urls:
+        if not opendap_urls or any(url is None for url in opendap_urls):
             return f"{index_name}: ❌ No input file"
 
-        params = setup_index_process_params(func_name, resolution, threshold)
+        params = setup_index_process_params(
+            params_identifier, resolution, params_threshold
+        )
+        accepted_args = set(getfullargspec(process).args)
+        params = {k: v for k, v in params.items() if k in accepted_args}
         process_result = process(*opendap_urls, **params)
         output_url = process_result.get()[0]
 
@@ -255,3 +340,10 @@ def run_single_index(ix_params, downscaling_outputs):
 
     except Exception as e:
         return f"{index_name}: ❌ Error {str(e)}"
+    finally:
+        for path in temp_files:
+            try:
+                if path and os.path.exists(path):
+                    os.remove(path)
+            except Exception:
+                pass
