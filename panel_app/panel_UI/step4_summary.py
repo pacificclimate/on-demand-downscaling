@@ -1,5 +1,6 @@
 import panel as pn
 import os
+import traceback as tb
 from .state import get_state, prev_step, set_step
 from .widgets import build_panel_continue_button, summary_markdown
 from .user_warnings import user_warn, get_user_warning_pane
@@ -34,9 +35,20 @@ def get_queue_position(job, queue):
         return None
 
 
-def notify_on_failure(job, connection, exc_type, exc_value, traceback):
+def _format_failure_trace(exc_type, exc_value, exc_traceback):
+    if isinstance(exc_traceback, tb.StackSummary):
+        return "".join(exc_traceback.format())
+
+    if isinstance(exc_traceback, list):
+        return "".join(tb.StackSummary.from_list(exc_traceback).format())
+
+    return "".join(tb.format_exception(exc_type, exc_value, exc_traceback))
+
+
+def notify_on_failure(job, connection, exc_type, exc_value, exc_traceback):
     subject = f"On-demand downscaling Job Failure: {job.id}"
     user_email = job.meta.get("user_email")
+    formatted_args = ""
     if job.args:
         formatted_args = pprint.pformat(job.args, indent=2, width=80)
     # Email to user
@@ -48,12 +60,15 @@ def notify_on_failure(job, connection, exc_type, exc_value, traceback):
         send_summary_email(user_email, subject, user_body)
 
     # Email to team
+    formatted_tb = _format_failure_trace(exc_type, exc_value, exc_traceback)
+
     team_body = (
         f"ODDS job failed\n\n"
         f"**Job ID:** {job.id}\n"
         f"**Function:** {job.func_name}\n"
         f"**Args:** {formatted_args}\n"
-        f"**Error:** {exc_type.__name__}: {exc_value}\n\n"
+        f"**Traceback:**\n"
+        f"```text\n{formatted_tb}\n```\n"
         f"---\n\n"
     )
     send_summary_email(TEAM_ALERTS_EMAIL, subject, team_body)

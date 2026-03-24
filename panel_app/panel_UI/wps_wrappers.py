@@ -219,6 +219,7 @@ def run_single_downscaling(ds_params):
             print(f"⚠️ ERROR: An unexpected error occurred during downscaling:")
             print(f"{str(e)}")
             print("Please check your inputs and try again.")
+        raise
     print("ci proc:", ci_process)
 
     return {
