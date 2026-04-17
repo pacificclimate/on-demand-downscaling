@@ -145,6 +145,7 @@ def step4_summary_view():
                 "variable": idx["variable"],
                 "resolution": idx.get("resolution"),
                 "threshold": idx.get("threshold"),
+                "region": state.region,
             }
             index_jobs.append(ix_params)
 
