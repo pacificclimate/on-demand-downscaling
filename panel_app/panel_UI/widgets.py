@@ -495,7 +495,7 @@ def build_downscaling_controls(
         )
 
     dataset = build_radio_buttons(
-        options=["PCIC-Blend", "CanDCS"],
+        options=[("PCIC-Blend\n(1950-2012)", "PCIC-Blend"), "CanDCS"],
         description="Dataset:",
         value="PCIC-Blend",
         state=state,
