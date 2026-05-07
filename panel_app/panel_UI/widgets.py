@@ -9,6 +9,9 @@ from .config import BASE_SCENARIOS, SHOW_OBS_DOMAIN, SSP370
 
 
 class AppState(param.Parameterized):
+    user = param.String(default="")
+    username = param.String(default="")
+    email = param.String(default="")
     center_hover = param.String(default="")
     center = param.String(default="")
     region = param.String(default="")
@@ -44,7 +47,6 @@ class AppState(param.Parameterized):
     center_point = param.Parameter(default=None)
     selected_variables = param.List(default=[])
     indices_selected = param.List(default=[])
-    email = param.String(default="")
     current_step = param.Integer(default=0)
     authenticated = param.Boolean(default=False)
     obs_domain = param.String(default="Canada Mosaic")
