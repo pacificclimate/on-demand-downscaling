@@ -1,7 +1,7 @@
 import panel as pn
 from pathlib import Path
 from .widgets import AppState
-from .config import MAGPIE_URL
+from .config import APP_NAME, MAGPIE_URL
 import requests
 
 
@@ -17,6 +17,13 @@ def get_main_pane():
     if not hasattr(doc, "main_pane"):
         doc.main_pane = pn.Column()
     return doc.main_pane
+
+
+def get_header_pane():
+    doc = pn.state.curdoc
+    if not hasattr(doc, "header_pane"):
+        doc.header_pane = pn.Row(sizing_mode="stretch_width")
+    return doc.header_pane
 
 
 def get_help_pane():
@@ -42,6 +49,76 @@ STEP_README_FILES = {
     3: Path(__file__).parent / "help_docs/STEP3.md",
     4: Path(__file__).parent / "help_docs/STEP4.md",
 }
+
+
+def reset_ui_cache():
+    doc = pn.state.curdoc
+    for attr in ("controls", "map_widget", "dpad_wired"):
+        if hasattr(doc, attr):
+            delattr(doc, attr)
+    if hasattr(doc, "user_warnings_log"):
+        doc.user_warnings_log = []
+    if hasattr(doc, "user_warning_pane"):
+        doc.user_warning_pane.object = ""
+        doc.user_warning_pane.visible = False
+
+
+def reset_app_state():
+    doc = pn.state.curdoc
+    reset_ui_cache()
+    doc.app_state = AppState()
+    return doc.app_state
+
+
+def logout():
+    auth_cookie = pn.state.cookies.get("auth_tkt")
+    try:
+        if auth_cookie:
+            requests.get(
+                f"{MAGPIE_URL}/signout",
+                cookies={"auth_tkt": auth_cookie},
+                timeout=3,
+                allow_redirects=False,
+            )
+    except Exception:
+        pass
+
+    try:
+        pn.state.cookies.pop("auth_tkt", None)
+    except Exception:
+        try:
+            pn.state.cookies.update({"auth_tkt": ""})
+        except Exception:
+            pass
+
+    state = reset_app_state()
+    state.current_step = 0
+    state.authenticated = False
+    render()
+
+
+def update_header():
+    header_pane = get_header_pane()
+    header_pane.clear()
+    state = get_state()
+
+    title = pn.pane.Markdown(
+        f"## {APP_NAME}",
+        margin=(0, 10, 0, 0),
+    )
+
+    if not getattr(state, "authenticated", False):
+        header_pane.append(title)
+        return
+
+    user_name = getattr(state, "user", "") or getattr(state, "username", "") or "user"
+    welcome = pn.pane.Markdown(
+        f"**Signed in as:** `{user_name}`",
+        margin=(0, 10, 0, 0),
+    )
+    logout_btn = pn.widgets.Button(name="Logout", button_type="warning", width=100)
+    logout_btn.on_click(lambda event: logout())
+    header_pane.extend([title, pn.layout.HSpacer(), welcome, logout_btn])
 
 
 def render():
@@ -89,8 +166,9 @@ def render():
                     username = r.json().get("user", {}).get("user_name", "user")
                     email = r.json().get("user", {}).get("email", "user")
                     state.authenticated = True
-                    state.email = email
+                    state.user = username
                     state.username = username
+                    state.email = email
                     render()  # rerun with new state
                     return
         except Exception:
@@ -99,6 +177,7 @@ def render():
 
     # Show help for current step
     update_help(step)
+    update_header()
 
 
 def next_step(event=None):

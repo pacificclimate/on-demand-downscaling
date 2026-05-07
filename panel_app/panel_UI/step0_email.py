@@ -89,6 +89,7 @@ def step0_authentication(next_step):
                 email = r.json().get("user", {}).get("email", "user")
                 state.authenticated = True
                 state.user = username
+                state.username = username
                 state.email = email
                 welcome_md = pn.pane.Markdown(f"## Welcome, **{username}**!", width=400)
                 continue_btn = pn.widgets.Button(name="Continue", button_type="primary")
@@ -168,6 +169,7 @@ def step0_authentication(next_step):
                     email = session_check.json().get("user", {}).get("email", "user")
                     state.authenticated = True
                     state.user = username
+                    state.username = username
                     state.email = email
                     pn.state.cookies.update({"auth_tkt": auth_cookie})
                     show_message(f"Welcome, **{username}**!", "success")
