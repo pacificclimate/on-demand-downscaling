@@ -6,8 +6,6 @@ import os
 
 load_dotenv()
 
-APP_NAME = "Canada-wide On-Demand fine-scale DownScaling Application"
-
 MAGPIE_URL = os.getenv("MAGPIE_URL")
 BIRDHOUSE_PUB_URL = os.getenv("BIRDHOUSE_PUB_URL")
 BIRDHOUSE_FQDN = os.getenv("BIRDHOUSE_FQDN")
