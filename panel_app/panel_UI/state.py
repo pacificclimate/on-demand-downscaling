@@ -1,5 +1,6 @@
 import panel as pn
 import os
+import base64
 from pathlib import Path
 from time import time
 from .widgets import AppState
@@ -60,6 +61,28 @@ STEP_README_FILES = {
     4: Path(__file__).parent / "help_docs/STEP4.md",
 }
 
+LOGO_PATH = Path(__file__).parent / "assets" / "logo.webp"
+
+
+def _header_title_pane():
+    logo_html = ""
+    if LOGO_PATH.exists():
+        encoded = base64.b64encode(LOGO_PATH.read_bytes()).decode("ascii")
+        logo_html = (
+            f"<img src='data:image/webp;base64,{encoded}' "
+            "style='height:32px;width:auto;display:block;' alt='Logo'>"
+        )
+
+    return pn.pane.HTML(
+        (
+            "<div style='display:inline-flex;align-items:center;gap:10px;'>"
+            f"{logo_html}"
+            f"<h2 style='margin:0; line-height:1.1;'>{APP_NAME}</h2>"
+            "</div>"
+        ),
+        margin=(0, 10, 0, 0),
+    )
+
 
 def reset_ui_cache():
     doc = pn.state.curdoc
@@ -68,7 +91,6 @@ def reset_ui_cache():
         "map_widget",
         "dpad_wired",
         "service_status_cache",
-        "service_status_popup_visible",
     ):
         if hasattr(doc, attr):
             delattr(doc, attr)
@@ -160,70 +182,84 @@ def get_service_status(force=False):
     return status
 
 
-def _service_status_summary(status):
+def _service_status_indicator(status):
     degraded = [item for item in status.values() if not item["ok"]]
-    if not degraded:
-        return "All required backend services are ready.", "success"
 
-    lines = ["Required backend services are unavailable:"]
-    for item in degraded:
-        lines.append(f"- `{item['label']}`: {item['detail']}")
-    return "\n".join(lines), "danger"
-
-
-def toggle_service_status_popup():
-    doc = pn.state.curdoc
-    current = getattr(doc, "service_status_popup_visible", False)
-    doc.service_status_popup_visible = not current
-    update_header()
-
-
-def update_service_status_popup():
-    status = get_service_status()
-    summary, level = _service_status_summary(status)
-    return pn.pane.Alert(
-        summary,
-        alert_type=level,
-        visible=True,
-        sizing_mode="stretch_width",
+    base_style = (
+        "display:inline-flex;align-items:center;gap:6px;"
+        "font-size:0.85em;line-height:1.2;white-space:nowrap;"
     )
+    dot_style = (
+        "display:inline-block;width:10px;height:10px;"
+        "border-radius:50%;flex-shrink:0;"
+    )
+
+    if not degraded:
+        html = (
+            f"<span style='{base_style}' title='All services OK'>"
+            f"<span style='{dot_style}background:#2ecc71;'></span>"
+            "<span>Status: OK</span>"
+            "</span>"
+        )
+        return pn.pane.HTML(html, margin=0)
+
+    names = ", ".join(item["label"] for item in degraded)
+    tooltip = " | ".join(f"{item['label']}: {item['detail']}" for item in degraded)
+    html = (
+        f"<span style='{base_style}' title='{tooltip}'>"
+        f"<span style='{dot_style}background:#e74c3c;'></span>"
+        f"<span style='color:#e74c3c;'>Status: {names} down</span>"
+        "</span>"
+    )
+    return pn.pane.HTML(html, margin=0)
 
 
 def update_header():
     header_pane = get_header_pane()
     header_pane.clear()
-    doc = pn.state.curdoc
     state = get_state()
 
-    title = pn.pane.HTML(
-        f"<h2 style='margin:0'>{APP_NAME}</h2>",
-        margin=(0, 10, 0, 0),
-    )
-    status_btn = pn.widgets.Button(
-        name="Service Status",
-        button_type="light",
-        width=120,
-    )
-    status_btn.on_click(lambda event: toggle_service_status_popup())
-    popup_visible = getattr(doc, "service_status_popup_visible", False)
+    title = _header_title_pane()
 
-    row_items = [title, pn.layout.HSpacer(), status_btn]
+    status = get_service_status()
+    status_indicator = _service_status_indicator(status)
+
+    row_items = [title, pn.layout.HSpacer()]
+
     if getattr(state, "authenticated", False):
         user_name = (
             getattr(state, "user", "") or getattr(state, "username", "") or "user"
         )
-        welcome = pn.pane.Markdown(
-            f"**Signed in as:** `{user_name}`",
-            margin=(0, 10, 0, 0),
+        welcome = pn.pane.HTML(
+            (
+                "<span style='display:inline-flex;align-items:center;"
+                "line-height:1.2;white-space:nowrap;'>"
+                f"<strong>Signed in as:</strong>&nbsp;<code>{user_name}</code>"
+                "</span>"
+            ),
+            margin=0,
         )
         logout_btn = pn.widgets.Button(name="Logout", button_type="warning", width=100)
         logout_btn.on_click(lambda event: logout())
-        row_items.extend([welcome, logout_btn])
+        account_block = pn.Column(
+            welcome,
+            status_indicator,
+            margin=0,
+            styles={"align-items": "flex-end", "row-gap": "4px"},
+        )
+        row_items.extend([account_block, logout_btn])
+    else:
+        row_items.append(status_indicator)
 
-    header_row = pn.Row(*row_items, sizing_mode="stretch_width", margin=0)
-    header_pane.append(header_row)
-    if popup_visible:
-        header_pane.append(update_service_status_popup())
+    header_pane.append(
+        pn.Row(
+            *row_items,
+            sizing_mode="stretch_width",
+            margin=0,
+            align="center",
+            styles={"column-gap": "12px"},
+        )
+    )
 
 
 def render():

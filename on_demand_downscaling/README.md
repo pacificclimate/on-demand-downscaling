@@ -8,7 +8,7 @@ To run a cell in the notebook, click on it, then either press <b>Shift+Enter</b>
 
 To restart the notebook, click on <b>Kernel&rarr;Restart Kernel</b> at the top left menu of the page.
 
-The workflow takes advantage of applications used in the DACCS project called "birds", which convert packages into web services. The notebook is split into two major sections.
+The workflow takes advantage of applications used in the Data Analytics for Canadian Climate Services (DACCS) project called "birds", which convert packages into web services. The notebook is split into two major sections.
 
 ### _Please note that all output files will be removed from PCIC servers after a period of two days. We encourage you to download any data you may need within this timeframe._
 
