@@ -14,7 +14,8 @@ In this step, you will specify the region of interest, input data, type of downs
 
    - **Region name**: Assign a name to your region (for file naming/tracking).
    - **Climate variables**: Choose the desired variable(s): daily total precipitation, daily mean, maximum or minimum temperature.
-   - **Dataset**: Select the input dataset (PCIC-Blend or CanDCS). 
+   - **Dataset**: Select the input dataset (PCIC-Blend or CanDCS).
+     - If you select PCIC-Blend, nothing more needs to be specified. The time period is 1950-2012.
      - If you select CanDCS, you’ll need to specify the:
        - Downscaling technique (Univariate or Multivariate)
        - Global climate model
