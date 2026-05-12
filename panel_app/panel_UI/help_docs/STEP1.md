@@ -32,7 +32,7 @@ In this step, you will specify the region of interest, input data, type of downs
 
 - This step uses PCIC’s [Chickadee](https://github.com/pacificclimate/chickadee) service (built on [ClimDown](https://github.com/pacificclimate/climdown)) to downscale medium-resolution climate data to a high-resolution grid.
 - See PCIC’s [Daily Gridded Meteorological Datasets](https://www.uvic.ca/pcic/data-analysis-tools/data-portal/daily-gridded-meteorology/index.php) and [Statistically Downscaled Climate Scenarios](https://www.uvic.ca/pcic/data-analysis-tools/data-portal/statistically-downscaled-scenarios/index.php) pages for more information on the data inputs.
-- See PCIC’s Monthly Climatologies page for more information on the high-resolution target grid.
+- See [PCIC’s Monthly Climatologies page](https://www.uvic.ca/pcic/data-analysis-tools/data-portal/finescale-gridded-climatologies/index.php) for more information on the high-resolution target grid.
 - Chickadee implements the Climate Imprint method, described further in the paper of Sobie and Murdock (J. Appl. Meteorol. & Clim., 2017, https://doi.org/10.1175/JAMC-D-16-0287.1).
 - The larger blue (input) region ensures your high-resolution target region is fully covered.
 
