@@ -142,6 +142,25 @@ def _check_queue_status():
     return {"ok": True, "label": "Queue", "detail": "Redis queue reachable"}
 
 
+def _check_magpie_status():
+    if not MAGPIE_URL:
+        raise ValueError("MAGPIE_URL is not configured.")
+
+    resp = requests.get(
+        f"{MAGPIE_URL}/session",
+        timeout=SERVICE_CHECK_TIMEOUT,
+        allow_redirects=False,
+    )
+    if resp.status_code >= 500:
+        resp.raise_for_status()
+
+    return {
+        "ok": True,
+        "label": "Magpie",
+        "detail": f"Magpie session endpoint reachable ({resp.status_code})",
+    }
+
+
 def _check_wps_status(label, url):
     resp = requests.get(
         url,
@@ -154,8 +173,32 @@ def _check_wps_status(label, url):
     return {"ok": True, "label": label, "detail": "WPS endpoint reachable"}
 
 
+SERVICE_CHECKS = {
+    "magpie": lambda: _check_magpie_status(),
+    "queue": lambda: _check_queue_status(),
+    "chickadee": lambda: _check_wps_status("Chickadee", CHICKADEE_URL),
+    "finch": lambda: _check_wps_status("Finch", FINCH_URL),
+}
+
+
+def collect_service_status(check_names=None):
+    checks = check_names or tuple(SERVICE_CHECKS)
+    status = {}
+    for key in checks:
+        check = SERVICE_CHECKS[key]
+        try:
+            status[key] = check()
+        except Exception as exc:
+            label = key.capitalize() if key != "queue" else "Queue"
+            status[key] = {"ok": False, "label": label, "detail": str(exc)}
+    return status
+
+
 def get_service_status(force=False):
     doc = pn.state.curdoc
+    if doc is None:
+        return collect_service_status()
+
     now = time()
     cache = getattr(doc, "service_status_cache", None)
     if (
@@ -165,19 +208,7 @@ def get_service_status(force=False):
     ):
         return cache["status"]
 
-    checks = [
-        ("queue", lambda: _check_queue_status()),
-        ("chickadee", lambda: _check_wps_status("Chickadee", CHICKADEE_URL)),
-        ("finch", lambda: _check_wps_status("Finch", FINCH_URL)),
-    ]
-    status = {}
-    for key, check in checks:
-        try:
-            status[key] = check()
-        except Exception as exc:
-            label = key.capitalize() if key != "queue" else "Queue"
-            status[key] = {"ok": False, "label": label, "detail": str(exc)}
-
+    status = collect_service_status()
     doc.service_status_cache = {"checked_at": now, "status": status}
     return status
 
@@ -196,7 +227,7 @@ def _service_status_indicator(status):
 
     if not degraded:
         html = (
-            f"<span style='{base_style}' title='All services OK'>"
+            f"<span style='{base_style}'>"
             f"<span style='{dot_style}background:#2ecc71;'></span>"
             "<span>Status: OK</span>"
             "</span>"
@@ -204,9 +235,8 @@ def _service_status_indicator(status):
         return pn.pane.HTML(html, margin=0)
 
     names = ", ".join(item["label"] for item in degraded)
-    tooltip = " | ".join(f"{item['label']}: {item['detail']}" for item in degraded)
     html = (
-        f"<span style='{base_style}' title='{tooltip}'>"
+        f"<span style='{base_style}'>"
         f"<span style='{dot_style}background:#e74c3c;'></span>"
         f"<span style='color:#e74c3c;'>Status: {names} down</span>"
         "</span>"
