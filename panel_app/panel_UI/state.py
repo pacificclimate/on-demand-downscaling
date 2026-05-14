@@ -244,6 +244,19 @@ def _service_status_indicator(status):
     return pn.pane.HTML(html, margin=0)
 
 
+def _service_status_banner(status):
+    degraded = [item for item in status.values() if not item["ok"]]
+    if not degraded:
+        return None
+
+    return pn.pane.Alert(
+        "One or more services are down at the moment. Please try again later.",
+        alert_type="warning",
+        margin=(10, 0, 0, 0),
+        sizing_mode="stretch_width",
+    )
+
+
 def update_header():
     header_pane = get_header_pane()
     header_pane.clear()
@@ -252,6 +265,7 @@ def update_header():
     title = _header_title_pane()
 
     status = get_service_status()
+    status_banner = _service_status_banner(status)
     status_indicator = _service_status_indicator(status)
 
     row_items = [title, pn.layout.HSpacer()]
@@ -290,6 +304,8 @@ def update_header():
             styles={"column-gap": "12px"},
         )
     )
+    if status_banner is not None:
+        header_pane.append(status_banner)
 
 
 def render():
