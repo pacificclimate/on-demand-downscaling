@@ -2,6 +2,7 @@ import panel as pn
 import os
 import base64
 from pathlib import Path
+from functools import lru_cache
 from time import time
 from .widgets import AppState
 from .config import (
@@ -64,6 +65,7 @@ STEP_README_FILES = {
 LOGO_PATH = Path(__file__).parent / "assets" / "logo.webp"
 
 
+@lru_cache(maxsize=1)
 def _header_title_pane():
     logo_html = ""
     if LOGO_PATH.exists():
@@ -250,7 +252,7 @@ def _service_status_banner(status):
         return None
 
     return pn.pane.Alert(
-        "One or more services are down at the moment. Please try again later.",
+        "One or more services are currently unavailable. Please try again later.",
         alert_type="warning",
         margin=(10, 0, 0, 0),
         sizing_mode="stretch_width",

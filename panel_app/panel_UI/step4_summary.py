@@ -97,7 +97,7 @@ def step4_summary_view():
         launch_blocked_alert.visible = not available
         if not available:
             launch_blocked_alert.object = (
-                "Launch is unavailable because one or more required services are down. "
+                "Launch is unavailable because one or more required services cannot be reached. "
                 "Check the status indicator in the header for details."
             )
         else:
@@ -115,7 +115,7 @@ def step4_summary_view():
         if not services_available():
             update_launch_state()
             user_warn(
-                "Submission is blocked because one or more required services are down.",
+                "Submission is blocked because one or more required services cannot be reached.",
                 "danger",
             )
             return
