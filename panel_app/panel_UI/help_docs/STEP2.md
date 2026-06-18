@@ -10,7 +10,7 @@ Please choose what kind of outputs you would like to receive:
 - **Warning:** High-resolution outputs are large files:
   - ~400 MB per variable (PCIC-Blend)
   - ~350 MB per variable (CanDCS, 1950-2010)
-  - ~800 MB per variable (CanDCS, 1981-2100)
+  - ~820 MB per variable (CanDCS, 1950-2100)
 
 ### 3. Both Daily Outputs and Climate Indices
 
