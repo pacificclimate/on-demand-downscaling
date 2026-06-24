@@ -215,7 +215,9 @@ def get_output(resp):
         print(f"Link to process output: {resp.get()[0].replace('dodsC', 'fileServer')}")
 
 
-def setup_index_process_params(identifier, resolution=None, threshold=None):
+def setup_index_process_params(
+    identifier, resolution=None, threshold=None, region_name=None
+):
     params = {}
     config = INDEX_PROCESS_CONFIG.get(identifier, INDEX_PROCESS_CONFIG["*"])
 
@@ -272,6 +274,9 @@ def setup_index_process_params(identifier, resolution=None, threshold=None):
     else:
         prefix = identifier.replace("_", "")
     params["output_name"] = f"{prefix}_{output_suffix}"
+    if region_name:
+        region_name = region_name.lower().replace(" ", "-")
+        params["output_name"] = f"{params['output_name']}_{region_name}"
 
     return params
 
