@@ -1,5 +1,13 @@
 # News / Release Notes
 
+## 2.2.0
+
+_Release Date: 2026-Jun-24_
+
+* [I32 prelaunch updates](https://github.com/pacificclimate/on-demand-downscaling/pull/33)
+* [I29 Added region name to indices outputs](https://github.com/pacificclimate/on-demand-downscaling/pull/30).
+* [I28 Raise exceptions on failures, include tracebacks in failure emails](https://github.com/pacificclimate/on-demand-downscaling/pull/31)
+
 ## 2.1.0
 
 _Release Date: 2026-Mar-13_
