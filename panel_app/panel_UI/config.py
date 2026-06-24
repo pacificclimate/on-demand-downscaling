@@ -6,6 +6,10 @@ import os
 
 load_dotenv()
 
+APP_NAME = "Canada-wide On-Demand fine-scale DownScaling Application"
+SERVICE_CHECK_TIMEOUT = 60
+SERVICE_STATUS_TTL_SECONDS = 30
+
 MAGPIE_URL = os.getenv("MAGPIE_URL")
 BIRDHOUSE_PUB_URL = os.getenv("BIRDHOUSE_PUB_URL")
 BIRDHOUSE_FQDN = os.getenv("BIRDHOUSE_FQDN")
@@ -73,6 +77,10 @@ BASE_SCENARIOS = [
 ]
 
 SSP370 = ("SSP3-7.0", "ssp370")
+SSP370_BLOCKED_MODELS = {
+    "KIOST-ESM",
+    "HadGEM3-GC31-LL",
+}
 
 
 PERIODS = ["1950-2010", "1981-2100", "1950-2100"]
@@ -147,14 +155,14 @@ DEFAULT_END_DATE = date(2010, 12, 31)
 
 INDEX_FUNCTIONS_STRUCTURE = {
     "tasmax": [
-        ("Mean", "tx_mean"),
+        ("Mean TX", "tx_mean"),
         ("Ice Days", "ice_days"),
         ("Hottest Day", "tx_max"),
         ("Coldest Day", "tx_min"),
         ("Days Above a Specified TX", "tx_days_above"),
     ],
     "tasmin": [
-        ("Mean", "tn_mean"),
+        ("Mean TN", "tn_mean"),
         ("Hottest Night", "tn_max"),
         ("Coldest Night", "tn_min"),
         ("Frost Days", "frost_days"),
@@ -162,7 +170,7 @@ INDEX_FUNCTIONS_STRUCTURE = {
         ("Days Below a Specified TN", "tn_days_below"),
     ],
     "tasmean": [
-        ("Mean", "tg_mean"),
+        ("Mean TM", "tg_mean"),
         ("Growing Season Length", "growing_season_length"),
         ("Growing Degree Days", "growing_degree_days"),
         ("Freezing Degree Days", "freezing_degree_days"),

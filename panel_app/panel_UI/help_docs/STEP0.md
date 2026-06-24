@@ -1,4 +1,4 @@
-## Welcome to PCIC’s On-Demand Fine-Scale Downscaling Application!
+## Welcome to PCIC’s Canada-wide On-Demand fine-scale DownScaling Application!
 
 To use this tool, you must sign in or register for an account.
 

@@ -51,18 +51,19 @@ def validate_point(pt):
 
 
 def clear_overlay(map_widget, controls, state):
-    if (
-        hasattr(map_widget, "active_overlay")
-        and map_widget.active_overlay in map_widget.layers
-    ):
-        map_widget.remove_layer(map_widget.active_overlay)
+    if hasattr(map_widget, "active_overlay"):
+        try:
+            map_widget.remove_layer(map_widget.active_overlay)
+        except Exception:
+            pass
     if hasattr(map_widget, "active_overlay"):
         delattr(map_widget, "active_overlay")
+    if hasattr(map_widget, "center_point"):
+        delattr(map_widget, "center_point")
     state.center_point = None
     state.map_bounds = {}
     if "center" in controls:
         controls["center"].value = ""
-
 
 def shift_box(dx=0, dy=0):
     doc = pn.state.curdoc
@@ -204,6 +205,7 @@ def step1_region_view():
     # Force create a fresh map widget to avoid reference conflicts
     map_widget = get_map_widget(force_new=True)
     controls = get_controls()
+    doc = pn.state.curdoc
     obs_toggle = controls.get("obs_domain", None)
 
     if obs_toggle is not None:
@@ -231,7 +233,14 @@ def step1_region_view():
                 map_widget.active_overlay = overlay_group
                 state.map_bounds = bounds
 
+        prev_callback = getattr(doc, "obs_domain_callback", None)
+        if prev_callback is not None:
+            try:
+                obs_toggle.unobserve(prev_callback, names="value")
+            except Exception:
+                pass
         obs_toggle.observe(_on_obs_domain_change, names="value")
+        doc.obs_domain_callback = _on_obs_domain_change
     control_box = controls["control_box_downscaling"]
 
     def handle_interact(**kwargs):
@@ -272,7 +281,6 @@ def step1_region_view():
             controls["center"].value = str(pt)
             state.map_bounds = bounds
 
-    doc = pn.state.curdoc
     if not getattr(doc, "dpad_wired", False):
         controls["shift_up_btn"].on_click(lambda e: shift_box(dy=0.5))
         controls["shift_down_btn"].on_click(lambda e: shift_box(dy=-0.5))
