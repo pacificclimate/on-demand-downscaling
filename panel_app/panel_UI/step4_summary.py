@@ -1,6 +1,7 @@
 import panel as pn
 import os
-from .state import get_state, prev_step, set_step
+import traceback as tb
+from .state import get_state, prev_step, set_step, get_service_status
 from .widgets import build_panel_continue_button, summary_markdown
 from .user_warnings import user_warn, get_user_warning_pane
 from .email_results import send_summary_email
@@ -34,9 +35,20 @@ def get_queue_position(job, queue):
         return None
 
 
-def notify_on_failure(job, connection, exc_type, exc_value, traceback):
+def _format_failure_trace(exc_type, exc_value, exc_traceback):
+    if isinstance(exc_traceback, tb.StackSummary):
+        return "".join(exc_traceback.format())
+
+    if isinstance(exc_traceback, list):
+        return "".join(tb.StackSummary.from_list(exc_traceback).format())
+
+    return "".join(tb.format_exception(exc_type, exc_value, exc_traceback))
+
+
+def notify_on_failure(job, connection, exc_type, exc_value, exc_traceback):
     subject = f"On-demand downscaling Job Failure: {job.id}"
     user_email = job.meta.get("user_email")
+    formatted_args = ""
     if job.args:
         formatted_args = pprint.pformat(job.args, indent=2, width=80)
     # Email to user
@@ -48,12 +60,15 @@ def notify_on_failure(job, connection, exc_type, exc_value, traceback):
         send_summary_email(user_email, subject, user_body)
 
     # Email to team
+    formatted_tb = _format_failure_trace(exc_type, exc_value, exc_traceback)
+
     team_body = (
         f"ODDS job failed\n\n"
         f"**Job ID:** {job.id}\n"
         f"**Function:** {job.func_name}\n"
         f"**Args:** {formatted_args}\n"
-        f"**Error:** {exc_type.__name__}: {exc_value}\n\n"
+        f"**Traceback:**\n"
+        f"```text\n{formatted_tb}\n```\n"
         f"---\n\n"
     )
     send_summary_email(TEAM_ALERTS_EMAIL, subject, team_body)
@@ -65,17 +80,49 @@ def step4_summary_view():
     summary_md = pn.pane.Markdown(summary_markdown(state))
     launch_btn = build_panel_continue_button("Launch")
     back_btn = build_panel_continue_button("Back")
+    launch_blocked_alert = pn.pane.Alert(
+        "",
+        alert_type="warning",
+        visible=False,
+        sizing_mode="stretch_width",
+    )
+
+    def services_available():
+        status = get_service_status(force=True)
+        return all(item["ok"] for item in status.values())
+
+    def update_launch_state():
+        available = services_available()
+        launch_btn.disabled = not available
+        launch_blocked_alert.visible = not available
+        if not available:
+            launch_blocked_alert.object = (
+                "Launch is unavailable because one or more required services cannot be reached. "
+                "Check the status indicator in the header for details."
+            )
+        else:
+            launch_blocked_alert.object = ""
+
+    update_launch_state()
 
     def enable_launch(*events):
-        launch_btn.disabled = False
+        update_launch_state()
 
     state.param.watch(enable_launch, PARAMS_TO_WATCH)
 
     def on_launch(event):
         launch_btn.disabled = True
+        if not services_available():
+            update_launch_state()
+            user_warn(
+                "Submission is blocked because one or more required services cannot be reached.",
+                "danger",
+            )
+            return
         user_email = state.email
         if not user_email:
             user_warn("No email provided.", "warning")
+            launch_btn.disabled = False
             return
         if state.output_intent == "indices":
             # Indices only: use only variables needed for selected indices
@@ -130,6 +177,7 @@ def step4_summary_view():
                 "variable": idx["variable"],
                 "resolution": idx.get("resolution"),
                 "threshold": idx.get("threshold"),
+                "region": state.region,
             }
             index_jobs.append(ix_params)
 
@@ -184,6 +232,7 @@ def step4_summary_view():
     back_btn.on_click(on_prev)
     return pn.Column(
         summary_md,
+        launch_blocked_alert,
         pn.Row(back_btn, launch_btn),
         get_user_warning_pane(),
         width=1200,

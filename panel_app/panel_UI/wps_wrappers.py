@@ -219,6 +219,7 @@ def run_single_downscaling(ds_params):
             print(f"⚠️ ERROR: An unexpected error occurred during downscaling:")
             print(f"{str(e)}")
             print("Please check your inputs and try again.")
+        raise
     print("ci proc:", ci_process)
 
     return {
@@ -235,6 +236,7 @@ def run_single_index(ix_params, downscaling_outputs):
     resolution = ix_params.get("resolution")
     threshold = ix_params.get("threshold")
     index_name = ix_params["index_name"]
+    region_name = ix_params.get("region")
     temp_files = []
 
     try:
@@ -329,7 +331,7 @@ def run_single_index(ix_params, downscaling_outputs):
             return f"{index_name}: ❌ No input file"
 
         params = setup_index_process_params(
-            params_identifier, resolution, params_threshold
+            params_identifier, resolution, params_threshold, region_name
         )
         accepted_args = set(getfullargspec(process).args)
         params = {k: v for k, v in params.items() if k in accepted_args}

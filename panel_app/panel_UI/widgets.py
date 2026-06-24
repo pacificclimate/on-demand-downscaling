@@ -3,12 +3,15 @@ from ipyleaflet import Map, LayerGroup, basemap_to_tiles, basemaps, Marker
 import panel as pn
 from inspect import getfullargspec
 import param
-from .config import BASE_SCENARIOS, SHOW_OBS_DOMAIN, SSP370
+from .config import BASE_SCENARIOS, SHOW_OBS_DOMAIN, SSP370, SSP370_BLOCKED_MODELS
 
 # ========== STATE ==========
 
 
 class AppState(param.Parameterized):
+    user = param.String(default="")
+    username = param.String(default="")
+    email = param.String(default="")
     center_hover = param.String(default="")
     center = param.String(default="")
     region = param.String(default="")
@@ -44,7 +47,6 @@ class AppState(param.Parameterized):
     center_point = param.Parameter(default=None)
     selected_variables = param.List(default=[])
     indices_selected = param.List(default=[])
-    email = param.String(default="")
     current_step = param.Integer(default=0)
     authenticated = param.Boolean(default=False)
     obs_domain = param.String(default="Canada Mosaic")
@@ -174,7 +176,13 @@ def build_scenario_buttons(
 
     def _refresh(*_):
         options = list(BASE_SCENARIOS)
-        if state.internal_dataset == "CMIP6" and state.internal_technique == "MBCn":
+        model = getattr(state, "model", "")
+        allow_ssp370 = model not in SSP370_BLOCKED_MODELS
+        if (
+            state.internal_dataset == "CMIP6"
+            and state.internal_technique == "MBCn"
+            and allow_ssp370
+        ):
             # Insert SSP3-7.0 before SSP5-8.5 (ssp585) so ordering is correct
             insert_at = next(
                 (i for i, (_, v) in enumerate(options) if v == "ssp585"),
@@ -195,6 +203,7 @@ def build_scenario_buttons(
     state.param.watch(lambda e: _refresh(), attr)
     state.param.watch(lambda e: _refresh(), "dataset")
     state.param.watch(lambda e: _refresh(), "technique")
+    state.param.watch(lambda e: _refresh(), "model")
 
     _refresh()
     return rb
