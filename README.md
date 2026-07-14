@@ -1,9 +1,11 @@
 # On-Demand Downscaling (ODDS)
 
-This repository supports **two ways** to run ODDS:
+This repository supports the **Panel Web App** — a multi-step UI with Magpie auth,
+Redis/RQ queueing, optional climate indices, and email notifications. Results are
+retained for 7 days.
 
-1. **Panel Web App (recommended)** — a multi-step UI with Magpie auth, Redis/RQ queueing, optional climate indices, and email notifications. **Results retained for 7 days.**
-2. **Legacy Jupyter Notebook** — original single-user flow for quick experiments. **Results retained for 2 days.**
+> The Jupyter notebook workflow is deprecated and is retained only for reference.
+> It is no longer supported or maintained. Use the Panel app for all new work.
 
 ---
 
@@ -40,11 +42,11 @@ This repository supports **two ways** to run ODDS:
 
 ```
 on-demand-downscaling/
-├─ panel_app/                  # New Panel app (see below)
-├─ on_demand_downscaling/      # Legacy notebook flow
+├─ panel_app/                  # Supported Panel app (see below)
+├─ on_demand_downscaling/      # Deprecated notebook reference
 │  ├─ on_demand_downscaling.ipynb
-│  ├─ helpers.py               # Notebook helpers
-│  └─ README.md                # User-facing documentation for the notebook
+│  ├─ helpers.py               # Deprecated notebook helpers
+│  └─ README.md                # Deprecation notice
 ├─ pyproject.toml
 └─ README.md                   # This file
 ```
@@ -103,7 +105,7 @@ Create a `.env` Check env variable for the dev deployment on beehive.
 | `SMTP_SSL`           | False                                                                    |
 | `SMTP_PASSWORD`      |                                                                          |
 
-**Retention policies:** Panel app: **7 days**; Notebook: **2 days**.
+**Retention policy:** Panel app results are retained for **7 days**.
 
 ---
 
@@ -182,37 +184,6 @@ This brings up:
 Open [http://localhost:5006](http://localhost:5006), metrics at [http://localhost:9726/metrics](http://localhost:9726/metrics).
 
 ---
-
-# Legacy Notebook
-
-The legacy notebook uses the same underlying services as the Panel app but runs as a single-user Jupyter workflow.
-**Retention:** Notebook outputs are retained for **2 days** and then purged.
-
-## Installation
-
-The dependencies used for this repo are managed using the [poetry](https://python-poetry.org/) tool. You can review [the instructions](https://python-poetry.org/docs/#installing-with-the-official-installer) for how to install it. After doing so, you can set up the virtual environment and the dependencies by running
-
-```bash
-$ poetry install
-```
-
-You can then enter the environment by running
-
-```bash
-$ poetry shell
-```
-
-## Notebook Startup
-
-Once the virtual environment is set up, you can start a Jupyterlab instance by running
-
-```bash
-jupyter lab
-```
-
-You can then open the notebook from the left sidebar.
-
-Open `on_demand_downscaling/on_demand_downscaling.ipynb` and follow the cells to select the region, choose dataset/technique/model/scenario/period, optionally compute indices, and download results.
 
 ## Releasing
 

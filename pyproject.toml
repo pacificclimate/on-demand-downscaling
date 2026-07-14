@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "on-demand_downscaling"
 version = "2.2.0"
-description = "A Jupyter Notebook facilitating the workflow for the on-demand downscaling project"
+description = "Panel web application for on-demand climate downscaling"
 authors = ["Eric Yvorchuk <eyvorchuk@uvic.ca>", "Quintin Sparks <quintins@uvic.ca>"]
 readme = "README.md"
 package-mode = false
