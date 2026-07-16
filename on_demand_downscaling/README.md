@@ -1,12 +1,14 @@
-# On-Demand Downscaling Notebook
+# Deprecated On-Demand Downscaling Notebook
 
-For best readability, this file should be opened in "Preview" mode: right click on README.md in the sidebar at left, then select <b>Open With&rarr;Markdown Preview<\b>.
+`on_demand_downscaling.ipynb` and its helpers are deprecated. They are retained
+only as an historical reference and are no longer supported or maintained.
 
-This folder contains a Jupyter notebook called `on_demand_downscaling.ipynb`, which facilitates the workflow for this demonstration project. The objective is to statistically downscale an input variable on a medium resolution grid (\~10 km) to a high-resolution (\~800 m) target grid in a small subregion of BC, and also permit the computation of climate indices from that high-resolution data.
+Use the supported Panel application in [`../panel_app/`](../panel_app/) for all
+new downscaling jobs. Do not rely on this notebook for production work.
 
-To run a cell in the notebook, click on it, then either press <b>Shift+Enter</b> or click on <b>Run&rarr;Run Selected</b> at the top left menu of the page.
+---
 
-To restart the notebook, click on <b>Kernel&rarr;Restart Kernel</b> at the top left menu of the page.
+The remaining documentation below is retained for reference only.
 
 The workflow takes advantage of applications used in the Data Analytics for Canadian Climate Services (DACCS) project called "birds", which convert packages into web services. The notebook is split into two major sections.
 
