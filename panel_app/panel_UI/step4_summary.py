@@ -46,7 +46,7 @@ def _format_failure_trace(exc_type, exc_value, exc_traceback):
 
 
 def notify_on_failure(job, connection, exc_type, exc_value, exc_traceback):
-    subject = f"On-demand downscaling Job Failure: {job.id}"
+    subject = f"CODDS Job Failure: {job.id}"
     user_email = job.meta.get("user_email")
     formatted_args = ""
     if job.args:
@@ -208,7 +208,7 @@ def step4_summary_view():
         try:
             send_summary_email(
                 user_email,
-                "Your ODDS Job Submission Summary",
+                "Your CODDS Job Submission Summary",
                 summary + extra_info,
             )
             user_warn("✅ Email sent! Jobs have been launched.", "success")

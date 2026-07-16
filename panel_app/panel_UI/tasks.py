@@ -38,7 +38,7 @@ def process_odds_job(user_email, job_params):
 
     send_summary_email(
         user_email,
-        "ODDS Results",
+        "CODDS Results",
         email_body,
     )
     return "Done"
