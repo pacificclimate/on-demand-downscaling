@@ -1,5 +1,13 @@
 # News / Release Notes
 
+## 2.3.0
+
+_Release Date: 2026-Jul-16_
+
+* [I34 Add deprecation notice](https://github.com/pacificclimate/on-demand-downscaling/pull/37)
+* [I35 Fix email subject](https://github.com/pacificclimate/on-demand-downscaling/pull/36) 
+
+
 ## 2.2.0
 
 _Release Date: 2026-Jun-24_
