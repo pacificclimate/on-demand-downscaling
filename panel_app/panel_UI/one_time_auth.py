@@ -3,8 +3,10 @@
 from dataclasses import dataclass
 import hashlib
 import hmac
+import math
 import os
 import secrets
+from time import time
 
 from redis.exceptions import WatchError
 
@@ -17,6 +19,10 @@ ONE_TIME_AUTH_RESEND_SECONDS = int(os.getenv("ONE_TIME_AUTH_RESEND_SECONDS", "60
 ONE_TIME_AUTH_MAX_ATTEMPTS = int(os.getenv("ONE_TIME_AUTH_MAX_ATTEMPTS", "5"))
 ONE_TIME_AUTH_ACCESS_TTL_SECONDS = int(
     os.getenv("ONE_TIME_AUTH_ACCESS_TTL_SECONDS", "28800")
+)
+ONE_TIME_AUTH_JOB_LIMIT = int(os.getenv("ONE_TIME_AUTH_JOB_LIMIT", "2"))
+ONE_TIME_AUTH_JOB_WINDOW_SECONDS = int(
+    os.getenv("ONE_TIME_AUTH_JOB_WINDOW_SECONDS", "86400")
 )
 
 
@@ -37,6 +43,13 @@ class VerificationResult:
     email: str | None = None
 
 
+@dataclass(frozen=True)
+class JobQuotaDecision:
+    allowed: bool
+    reservation_id: str | None = None
+    retry_after_seconds: int = 0
+
+
 def normalize_email(email: str) -> str:
     return (email or "").strip().lower()
 
@@ -51,6 +64,10 @@ def _challenge_key(challenge_id: str) -> str:
 
 def _rate_key(email: str) -> str:
     return f"{KEY_PREFIX}:rate:{_email_fingerprint(email)}"
+
+
+def _job_quota_key(email: str) -> str:
+    return f"{KEY_PREFIX}:jobs:{_email_fingerprint(email)}"
 
 
 def _digest_code(salt: str, code: str) -> str:
@@ -148,3 +165,49 @@ def verify_challenge(redis_client, challenge_id: str, code: str) -> Verification
             continue
         finally:
             pipe.reset()
+
+
+def reserve_job_submission(
+    redis_client, email: str, now: float | None = None
+) -> JobQuotaDecision:
+    """Atomically reserve one slot in the email's rolling job window."""
+    current_time = time() if now is None else now
+    cutoff = current_time - ONE_TIME_AUTH_JOB_WINDOW_SECONDS
+    key = _job_quota_key(email)
+
+    while True:
+        pipe = redis_client.pipeline()
+        try:
+            pipe.watch(key)
+            submissions = pipe.zrange(key, 0, -1, withscores=True)
+            active = [item for item in submissions if item[1] > cutoff]
+
+            if len(active) >= ONE_TIME_AUTH_JOB_LIMIT:
+                earliest = min(score for _, score in active)
+                retry_after = max(
+                    1,
+                    math.ceil(
+                        earliest + ONE_TIME_AUTH_JOB_WINDOW_SECONDS - current_time
+                    ),
+                )
+                return JobQuotaDecision(False, retry_after_seconds=retry_after)
+
+            reservation_id = secrets.token_urlsafe(18)
+            expired = [member for member, score in submissions if score <= cutoff]
+            pipe.multi()
+            if expired:
+                pipe.zrem(key, *expired)
+            pipe.zadd(key, {reservation_id: current_time})
+            pipe.expire(key, ONE_TIME_AUTH_JOB_WINDOW_SECONDS + 60)
+            pipe.execute()
+            return JobQuotaDecision(True, reservation_id=reservation_id)
+        except WatchError:
+            continue
+        finally:
+            pipe.reset()
+
+
+def release_job_reservation(redis_client, email: str, reservation_id: str) -> None:
+    """Return a reserved slot when enqueueing fails before a job is created."""
+    if reservation_id:
+        redis_client.zrem(_job_quota_key(email), reservation_id)

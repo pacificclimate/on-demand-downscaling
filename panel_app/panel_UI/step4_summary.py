@@ -1,4 +1,6 @@
 import panel as pn
+import logging
+import math
 import os
 import traceback as tb
 from .state import get_state, prev_step, set_step, get_service_status, has_valid_access
@@ -8,10 +10,17 @@ from .email_results import send_summary_email
 from .step1_downscale import update_state_from_controls
 from .tasks import process_odds_job
 from .config import INDEX_FUNCTIONS_STRUCTURE, PARAMS_TO_WATCH
+from .one_time_auth import (
+    ONE_TIME_AUTH_JOB_LIMIT,
+    release_job_reservation,
+    reserve_job_submission,
+)
 from rq import Queue
 from rq.job import Job
 import redis
 import pprint
+
+logger = logging.getLogger(__name__)
 
 # Connect to Redis
 redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -116,7 +125,8 @@ def step4_summary_view():
         launch_btn.disabled = True
         if not has_valid_access(state):
             user_warn(
-                "Your temporary access has expired. Return to the first step and request a new code.",
+                "Your temporary access has expired. Return to the first step and "
+                "request a new code.",
                 "warning",
             )
             launch_btn.disabled = False
@@ -197,14 +207,45 @@ def step4_summary_view():
             "user_email": user_email,
         }
 
-        job = q.enqueue(
-            "panel_app.panel_UI.tasks.process_odds_job",
-            user_email,
-            job_params,
-            job_timeout=60 * 60 * 6,
-            result_ttl=60 * 60 * 24 * 7,
-            on_failure="panel_app.panel_UI.step4_summary.notify_on_failure",
-        )
+        quota_reservation = None
+        if state.auth_method == "one_time":
+            decision = reserve_job_submission(conn, user_email)
+            if not decision.allowed:
+                retry_hours = max(1, math.ceil(decision.retry_after_seconds / 3600))
+                user_warn(
+                    f"Temporary access is limited to {ONE_TIME_AUTH_JOB_LIMIT} jobs "
+                    f"per rolling 24 hours. Try again in about {retry_hours} "
+                    f"hour{'s' if retry_hours != 1 else ''}.",
+                    "warning",
+                )
+                launch_btn.disabled = False
+                return
+            quota_reservation = decision.reservation_id
+
+        try:
+            job = q.enqueue(
+                "panel_app.panel_UI.tasks.process_odds_job",
+                user_email,
+                job_params,
+                job_timeout=60 * 60 * 6,
+                result_ttl=60 * 60 * 24 * 7,
+                on_failure="panel_app.panel_UI.step4_summary.notify_on_failure",
+            )
+        except Exception:
+            logger.exception("Failed to enqueue CODDS job")
+            if quota_reservation:
+                try:
+                    release_job_reservation(conn, user_email, quota_reservation)
+                except Exception:
+                    logger.exception("Failed to release one-time job quota reservation")
+            user_warn(
+                "The job could not be submitted. Please try again later. "
+                "If the problem continues, contact the PCIC team.",
+                "danger",
+            )
+            launch_btn.disabled = False
+            return
+
         job.meta["user_email"] = user_email
         job.save()
         pos = get_queue_position(job, q)

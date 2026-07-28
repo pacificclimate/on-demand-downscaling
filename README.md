@@ -109,6 +109,8 @@ Create a `.env` Check env variable for the dev deployment on beehive.
 | `ONE_TIME_AUTH_RESEND_SECONDS` | Minimum delay between codes to one email (default `60`).          |
 | `ONE_TIME_AUTH_MAX_ATTEMPTS` | Failed verification limit per code (default `5`).                 |
 | `ONE_TIME_AUTH_ACCESS_TTL_SECONDS` | Temporary access lifetime (default `28800`, eight hours).     |
+| `ONE_TIME_AUTH_JOB_LIMIT` | Temporary-user submissions per rolling window (default `2`).          |
+| `ONE_TIME_AUTH_JOB_WINDOW_SECONDS` | Submission quota window (default `86400`, 24 hours).       |
 
 **Retention policy:** Panel app results are retained for **7 days**.
 

@@ -8,7 +8,8 @@ This is your summary and final confirmation step.
 **What happens next?**
 
 - Your requested downscaling and/or climate index calculations will be run automatically.
-- When processing is complete, **a download link for each output will be emailed to you** at the address connected to your account.
+- When processing is complete, **a download link for each output will be emailed to you** at your signed-in or verified address.
+- One-time email access is limited to **2 submitted jobs in any rolling 24-hour period**, shared across all sessions using that email.
 - You do **not** need to keep this page open; you can close your browser or navigate away.
 
 > **Reminder:**  
