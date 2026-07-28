@@ -13,7 +13,7 @@ retained for 7 days.
 
 ## Five-step flow
 
-1. **Login & Registration** — integrates with **Magpie** for auth (**registration requires outbound email**).
+1. **Authentication** — Magpie login/registration or short-lived, one-time email access.
 2. **Downscaling Parameters** — map region (ipyleaflet), dataset, model, scenario, variables.
 3. **Output Selection** — climate indices, downscaled outputs, or both.
 4. **Indices Selection** — up to 8 indices with flexible resolution & thresholds.
@@ -98,12 +98,17 @@ Create a `.env` Check env variable for the dev deployment on beehive.
 | `MAGPIE_URL`         | Magpie authentication endpoint.                                          |
 | `REDIS_URL`          | Redis connection for RQ (worker).                                        |
 | `RQ_REDIS_URL`       | Redis connection for RQ (exporter). Set equal to REDIS_URL.              |
-| `SMTP_HOST`          | **Required if registration is enabled.** SMTP relay for auth + results.  |
+| `SMTP_HOST`          | SMTP relay for one-time auth and job emails.                              |
 | `SMTP_PORT`          | SMTP port. (e.g 587)                                                     |
 | `SMTP_FROM`          | “From” address for app emails.                                           |
 | `SMTP_USER`          | e.g. Magpie                                                              |
 | `SMTP_SSL`           | False                                                                    |
 | `SMTP_PASSWORD`      |                                                                          |
+| `ONE_TIME_AUTH_CODE_DIGITS` | Number of digits in an access code (default `6`).                |
+| `ONE_TIME_AUTH_TOKEN_TTL_SECONDS` | One-time code lifetime (default `600`).                       |
+| `ONE_TIME_AUTH_RESEND_SECONDS` | Minimum delay between codes to one email (default `60`).          |
+| `ONE_TIME_AUTH_MAX_ATTEMPTS` | Failed verification limit per code (default `5`).                 |
+| `ONE_TIME_AUTH_ACCESS_TTL_SECONDS` | Temporary access lifetime (default `28800`, eight hours).     |
 
 **Retention policy:** Panel app results are retained for **7 days**.
 

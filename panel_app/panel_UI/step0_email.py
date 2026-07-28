@@ -1,8 +1,26 @@
+import html
+import math
+import os
+import re
+from time import time
+
 import panel as pn
+import redis
 import requests
-import os, re
-from .state import get_state
+
 from .config import MAGPIE_URL
+from .email_results import send_summary_email
+from .one_time_auth import (
+    ONE_TIME_AUTH_ACCESS_TTL_SECONDS,
+    ONE_TIME_AUTH_CODE_DIGITS,
+    ONE_TIME_AUTH_RESEND_SECONDS,
+    ONE_TIME_AUTH_TOKEN_TTL_SECONDS,
+    OneTimeAuthRateLimited,
+    create_challenge,
+    revoke_challenge,
+    verify_challenge,
+)
+from .state import get_state
 
 pn.extension()
 
@@ -88,6 +106,8 @@ def step0_authentication(next_step):
                 username = r.json().get("user", {}).get("user_name", "user")
                 email = r.json().get("user", {}).get("email", "user")
                 state.authenticated = True
+                state.auth_method = "account"
+                state.auth_expires_at = 0
                 state.user = username
                 state.username = username
                 state.email = email
@@ -98,6 +118,8 @@ def step0_authentication(next_step):
         except Exception:
             pass
 
+    redis_client = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+
     # ---------- LOGIN FORM ----------
     login_username = pn.widgets.TextInput(name="Username")
     login_password = pn.widgets.PasswordInput(name="Password")
@@ -107,7 +129,6 @@ def step0_authentication(next_step):
         login_username,
         login_password,
         login_submit,
-        message,
     )
 
     # ---------- REGISTER FORM ----------
@@ -124,9 +145,41 @@ def step0_authentication(next_step):
         reg_password,
         reg_submit,
         back_button,
-        message,
         visible=False,
     )
+
+    # ---------- ONE-TIME EMAIL AUTH ----------
+    one_time_email = pn.widgets.TextInput(name="Email", placeholder="you@example.com")
+    send_code_btn = pn.widgets.Button(name="Email me a code", button_type="primary")
+    one_time_back = pn.widgets.Button(name="⬅ Back to Login", button_type="default")
+    one_time_form = pn.Column(
+        "# One-time access",
+        "Enter your email and we’ll send you a short-lived access code. No account is required.",
+        one_time_email,
+        send_code_btn,
+        one_time_back,
+        visible=False,
+    )
+
+    token_input = pn.widgets.TextInput(
+        name="Access code",
+        placeholder=f"{ONE_TIME_AUTH_CODE_DIGITS}-digit code",
+        max_length=ONE_TIME_AUTH_CODE_DIGITS,
+    )
+    verify_code_btn = pn.widgets.Button(name="Continue", button_type="primary")
+    different_email_btn = pn.widgets.Button(
+        name="Use a different email", button_type="default"
+    )
+    token_destination = pn.pane.HTML("")
+    token_form = pn.Column(
+        "# Enter your access code",
+        token_destination,
+        token_input,
+        verify_code_btn,
+        different_email_btn,
+        visible=False,
+    )
+    current_challenge = {"value": None}
 
     # ---------- CALLBACKS ----------
 
@@ -168,6 +221,8 @@ def step0_authentication(next_step):
                     )
                     email = session_check.json().get("user", {}).get("email", "user")
                     state.authenticated = True
+                    state.auth_method = "account"
+                    state.auth_expires_at = 0
                     state.user = username
                     state.username = username
                     state.email = email
@@ -255,27 +310,135 @@ def step0_authentication(next_step):
     def go_to_register(event):
         login_form.visible = False
         register_form.visible = True
+        one_time_form.visible = False
+        token_form.visible = False
         message.object = ""
 
     def go_to_login(event=None):
         login_form.visible = True
         register_form.visible = False
+        one_time_form.visible = False
+        token_form.visible = False
         message.object = ""
+
+    def go_to_one_time(event=None):
+        login_form.visible = False
+        register_form.visible = False
+        token_form.visible = False
+        one_time_form.visible = True
+        message.object = ""
+
+    def send_one_time_code(event):
+        email = one_time_email.value.strip()
+        if not looks_like_email(email):
+            show_message("Enter a valid email address.", "warning")
+            return
+
+        send_code_btn.disabled = True
+        send_code_btn.name = "Sending…"
+        challenge = None
+        try:
+            challenge = create_challenge(redis_client, email)
+            minutes = max(1, math.ceil(ONE_TIME_AUTH_TOKEN_TTL_SECONDS / 60))
+            send_summary_email(
+                challenge.email,
+                "Your CODDS one-time access code",
+                (
+                    f"Your CODDS access code is: {challenge.code}\n\n"
+                    f"This code expires in {minutes} minutes and can only be used once.\n"
+                    "If you did not request it, you can ignore this email."
+                ),
+            )
+            current_challenge["value"] = challenge
+            token_destination.object = (
+                f"We sent a code to <strong>{html.escape(challenge.email)}</strong>. "
+                f"It expires in {minutes} minutes."
+            )
+            one_time_form.visible = False
+            token_form.visible = True
+            token_input.value = ""
+            show_message("Code sent. Check your inbox and spam folder.", "success")
+        except OneTimeAuthRateLimited:
+            show_message(
+                f"A code was sent recently. Please wait {ONE_TIME_AUTH_RESEND_SECONDS} seconds before requesting another.",
+                "warning",
+            )
+        except Exception as exc:
+            if challenge is not None:
+                revoke_challenge(redis_client, challenge)
+            show_message(f"Could not send an access code: {exc}", "danger")
+        finally:
+            send_code_btn.disabled = False
+            send_code_btn.name = "Email me a code"
+
+    def verify_one_time_code(event):
+        challenge = current_challenge["value"]
+        if challenge is None:
+            go_to_one_time()
+            show_message("Request a new access code.", "warning")
+            return
+
+        verify_code_btn.disabled = True
+        try:
+            result = verify_challenge(
+                redis_client, challenge.challenge_id, token_input.value
+            )
+            if result.status == "verified":
+                state = get_state()
+                state.authenticated = True
+                state.auth_method = "one_time"
+                state.auth_expires_at = time() + ONE_TIME_AUTH_ACCESS_TTL_SECONDS
+                state.email = result.email
+                state.user = result.email
+                state.username = ""
+                current_challenge["value"] = None
+                next_step()
+                return
+            if result.status == "invalid":
+                show_message("That code is not correct. Please try again.", "danger")
+                token_input.value = ""
+            elif result.status == "too_many_attempts":
+                current_challenge["value"] = None
+                go_to_one_time()
+                show_message("Too many incorrect attempts. Request a new code.", "danger")
+            else:
+                current_challenge["value"] = None
+                go_to_one_time()
+                show_message("That code has expired. Request a new one.", "warning")
+        except Exception as exc:
+            show_message(f"Could not verify the access code: {exc}", "danger")
+        finally:
+            verify_code_btn.disabled = False
+
+    def use_different_email(event=None):
+        current_challenge["value"] = None
+        go_to_one_time()
 
     # ---------- BUTTON HOOKUP ----------
     login_submit.on_click(login_user)
     reg_submit.on_click(register_user)
     back_button.on_click(go_to_login)
+    send_code_btn.on_click(send_one_time_code)
+    verify_code_btn.on_click(verify_one_time_code)
+    one_time_back.on_click(go_to_login)
+    different_email_btn.on_click(use_different_email)
 
     # ---------- LOGIN & REGISTER TOGGLE BUTTONS ----------
     register_button = pn.widgets.Button(name="📝 Register", button_type="default")
     register_button.on_click(go_to_register)
+    one_time_button = pn.widgets.Button(
+        name="✉ One-time email access", button_type="default"
+    )
+    one_time_button.on_click(go_to_one_time)
 
     signin_panel[:] = [
         pn.Column(
             login_form,
-            register_button,
+            pn.Row(register_button, one_time_button),
             register_form,
+            one_time_form,
+            token_form,
+            message,
         )
     ]
 

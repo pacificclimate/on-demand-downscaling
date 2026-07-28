@@ -1,7 +1,7 @@
 import panel as pn
 import os
 import traceback as tb
-from .state import get_state, prev_step, set_step, get_service_status
+from .state import get_state, prev_step, set_step, get_service_status, has_valid_access
 from .widgets import build_panel_continue_button, summary_markdown
 from .user_warnings import user_warn, get_user_warning_pane
 from .email_results import send_summary_email
@@ -89,6 +89,8 @@ def step4_summary_view():
 
     def services_available():
         status = get_service_status(force=True)
+        if state.auth_method == "one_time":
+            status = {key: value for key, value in status.items() if key != "magpie"}
         return all(item["ok"] for item in status.values())
 
     def update_launch_state():
@@ -112,6 +114,13 @@ def step4_summary_view():
 
     def on_launch(event):
         launch_btn.disabled = True
+        if not has_valid_access(state):
+            user_warn(
+                "Your temporary access has expired. Return to the first step and request a new code.",
+                "warning",
+            )
+            launch_btn.disabled = False
+            return
         if not services_available():
             update_launch_state()
             user_warn(
