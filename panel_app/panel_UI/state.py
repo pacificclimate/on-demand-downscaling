@@ -6,6 +6,7 @@ from pathlib import Path
 from functools import lru_cache
 from time import time
 from .widgets import AppState
+from .user_warnings import clear_user_warnings
 from .config import (
     APP_NAME,
     MAGPIE_URL,
@@ -336,6 +337,7 @@ def update_header():
 
 
 def render():
+    clear_user_warnings()
     state = get_state()
     main_pane = get_main_pane()
     main_pane.clear()

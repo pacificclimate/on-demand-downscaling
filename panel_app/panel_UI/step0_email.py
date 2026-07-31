@@ -33,8 +33,22 @@ MIN_PASSWORD_LEN = 12
 EMAIL_REGEX = re.compile(r"^[^@\s]+@((?:[^@\s.]+\.)+[^@\s.]+|\[[0-9A-Fa-f:.]+\])$")
 
 
+def email_validation_error(text: str) -> str | None:
+    value = (text or "").strip()
+    # The configured mail relay does not deliver tagged addresses. Comments can
+    # also resolve to an untagged mailbox while producing a different quota key.
+    if "+" in value or "(" in value or ")" in value:
+        return (
+            "Email tags (+tag) and comments (...) are not permitted. "
+            "Enter your base email address."
+        )
+    if not EMAIL_REGEX.match(value):
+        return "Enter a valid email address."
+    return None
+
+
 def looks_like_email(text: str) -> bool:
-    return bool(EMAIL_REGEX.match(text.strip()))
+    return email_validation_error(text) is None
 
 
 def validate_registration(username: str, email: str, password: str):
@@ -56,8 +70,8 @@ def validate_registration(username: str, email: str, password: str):
             )
     if not e:
         errs.append("Email is required.")
-    elif not looks_like_email(e):
-        errs.append("Email does not look valid.")
+    elif email_error := email_validation_error(e):
+        errs.append(email_error)
 
     if u and looks_like_email(u):
         errs.append("Username must not be an email address.")
@@ -330,8 +344,8 @@ def step0_authentication(next_step):
 
     def send_one_time_code(event):
         email = one_time_email.value.strip()
-        if not looks_like_email(email):
-            show_message("Enter a valid email address.", "warning")
+        if email_error := email_validation_error(email):
+            show_message(email_error, "warning")
             return
 
         send_code_btn.disabled = True

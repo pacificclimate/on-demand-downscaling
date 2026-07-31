@@ -5,7 +5,7 @@ import os
 import traceback as tb
 from .state import get_state, prev_step, set_step, get_service_status, has_valid_access
 from .widgets import build_panel_continue_button, summary_markdown
-from .user_warnings import user_warn, get_user_warning_pane
+from .user_warnings import clear_user_warnings, user_warn, get_user_warning_pane
 from .email_results import send_summary_email
 from .step1_downscale import update_state_from_controls
 from .tasks import process_odds_job
@@ -122,6 +122,7 @@ def step4_summary_view():
     state.param.watch(enable_launch, PARAMS_TO_WATCH)
 
     def on_launch(event):
+        clear_user_warnings()
         launch_btn.disabled = True
         if not has_valid_access(state):
             user_warn(
