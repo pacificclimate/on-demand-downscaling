@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "on-demand_downscaling"
-version = "2.3.0"
+version = "2.4.0"
 description = "Panel web application for on-demand climate downscaling"
-authors = ["Eric Yvorchuk <eyvorchuk@uvic.ca>", "Quintin Sparks <quintins@uvic.ca>"]
+authors = ["Eric Yvorchuk", "Quintin Sparks <quintins@uvic.ca>"]
 readme = "README.md"
 package-mode = false
 
