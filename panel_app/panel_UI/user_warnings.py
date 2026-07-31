@@ -1,5 +1,6 @@
 import panel as pn
 
+
 def get_user_warning_pane():
     doc = pn.state.curdoc
     if not hasattr(doc, "user_warning_pane"):
@@ -8,11 +9,22 @@ def get_user_warning_pane():
         )
     return doc.user_warning_pane
 
+
 def get_user_warnings_log():
     doc = pn.state.curdoc
     if not hasattr(doc, "user_warnings_log"):
         doc.user_warnings_log = []
     return doc.user_warnings_log
+
+
+def clear_user_warnings():
+    """Clear messages previously displayed during the current session."""
+    doc = pn.state.curdoc
+    doc.user_warnings_log = []
+    pane = get_user_warning_pane()
+    pane.object = ""
+    pane.visible = False
+
 
 def user_warn(message, level="light"):
     """

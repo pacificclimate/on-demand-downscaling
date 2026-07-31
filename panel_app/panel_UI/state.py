@@ -1,10 +1,12 @@
 import panel as pn
 import os
 import base64
+import html
 from pathlib import Path
 from functools import lru_cache
 from time import time
 from .widgets import AppState
+from .user_warnings import clear_user_warnings
 from .config import (
     APP_NAME,
     MAGPIE_URL,
@@ -135,6 +137,26 @@ def logout():
     state.current_step = 0
     state.authenticated = False
     render()
+
+
+def has_valid_access(state=None):
+    state = state or get_state()
+    if not getattr(state, "authenticated", False):
+        return False
+    if getattr(state, "auth_method", "") != "one_time":
+        return True
+    expires_at = getattr(state, "auth_expires_at", 0)
+    if expires_at and time() < expires_at:
+        return True
+
+    state.authenticated = False
+    state.auth_method = ""
+    state.auth_expires_at = 0
+    state.user = ""
+    state.username = ""
+    state.email = ""
+    state.current_step = 0
+    return False
 
 
 def _check_queue_status():
@@ -272,15 +294,19 @@ def update_header():
 
     row_items = [title, pn.layout.HSpacer()]
 
-    if getattr(state, "authenticated", False):
+    if has_valid_access(state):
         user_name = (
             getattr(state, "user", "") or getattr(state, "username", "") or "user"
+        )
+        safe_user_name = html.escape(user_name)
+        auth_label = (
+            "Temporary access" if state.auth_method == "one_time" else "Signed in as"
         )
         welcome = pn.pane.HTML(
             (
                 "<span style='display:inline-flex;align-items:center;"
                 "line-height:1.2;white-space:nowrap;'>"
-                f"<strong>Signed in as:</strong>&nbsp;<code>{user_name}</code>"
+                f"<strong>{auth_label}:</strong>&nbsp;<code>{safe_user_name}</code>"
                 "</span>"
             ),
             margin=0,
@@ -311,6 +337,7 @@ def update_header():
 
 
 def render():
+    clear_user_warnings()
     state = get_state()
     main_pane = get_main_pane()
     main_pane.clear()
@@ -323,7 +350,7 @@ def render():
 
     step = getattr(state, "current_step", 0)
 
-    if getattr(state, "authenticated", False):
+    if has_valid_access(state):
         if step == 0:
             main_pane.append(step0_authentication(next_step))
         elif step == 1:
@@ -355,6 +382,8 @@ def render():
                     username = r.json().get("user", {}).get("user_name", "user")
                     email = r.json().get("user", {}).get("email", "user")
                     state.authenticated = True
+                    state.auth_method = "account"
+                    state.auth_expires_at = 0
                     state.user = username
                     state.email = email
                     state.username = username

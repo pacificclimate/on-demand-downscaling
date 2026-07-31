@@ -12,6 +12,8 @@ class AppState(param.Parameterized):
     user = param.String(default="")
     username = param.String(default="")
     email = param.String(default="")
+    auth_method = param.String(default="")
+    auth_expires_at = param.Number(default=0.0)
     center_hover = param.String(default="")
     center = param.String(default="")
     region = param.String(default="")

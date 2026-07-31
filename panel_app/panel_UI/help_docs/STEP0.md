@@ -26,6 +26,10 @@ All computations are performed on-demand, and **links to download results will b
   If you don't have an account, click **Register**, then fill in your username, email, and password.  
   _After registering, check your email to confirm your account._ If you do not see an email, please check your spam folder.
 
+- **One-time email access**
+  To continue without an account, click **One-time email access**, enter your email, and then enter the short-lived code sent to you. Your submission summary and result links will be sent to that same address.
+  One-time access is limited to **2 job submissions per email in any rolling 24-hour period**. Tagged and commented email addresses are not supported.
+
 - **Continue**:  
   Once logged in, click **Continue** to proceed to the next step.
 
